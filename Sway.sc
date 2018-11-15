@@ -3,7 +3,7 @@ Sway : Singleton {
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezefreq, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>amp_thresh=4, <>clarity_thresh=0.6, <>density_thresh=1.5, <>tracker, <>count=0, <>analysis_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezefreq, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>amp_thresh=4, <>clarity_thresh=0.6, <>density_thresh=1.5, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
 
     init {
 		//Setup initial parameters
@@ -15,6 +15,9 @@ Sway : Singleton {
 
 		//fft
 		fftbuffer = Buffer.alloc(Server.default, 1024);
+
+		//delaybuffer
+		delaybuffer = Buffer.alloc(Server.default, 12*44100, 1);
 
 		//audio recorder
 		buffer = Buffer.alloc(Server.default, long_win*44100, 1);
@@ -73,9 +76,9 @@ Sway : Singleton {
 						//if(verbose==true,{(this.name++" clarity: "++val[1]).postln});
 						if( val[1] > clarity_thresh,
 							{above_clarity_thresh=true;
-							xy[0]=(xy[0]-step).clip(0,1)},
+							xy[0]=(xy[0]+step).clip(0,1)},
 							{above_clarity_thresh=false;
-							xy[0]=(xy[0]+step).clip(0,1)});
+							xy[0]=(xy[0]-step).clip(0,1)});
 					});
 					onsets.bus.get({|val|
 						//if(verbose==true,{(this.name++" onsets: "++val[1]).postln});
@@ -108,13 +111,14 @@ Sway : Singleton {
 				quadrant_flag=false;
 				},{});
 		//Tracker processing grid changer is implemented here
+			if (tracker_on==true, {
 			if( tracker.any({|i,n|i>timelimit}), {//if any item in tracker is above timelimit
 					//then choose new processing for that quadrant
 					this.choose_new_processing(tracker.detectIndex({|i|i>timelimit}));
 					(this.name++": processing grid changing").postln;
 					if(verbose==false,{global_change=true;(this.name++": global change enabled").postln});
 					quadrant_flag=true;
-					tracker=[0,0,0,0,0];
+					tracker[tracker.detectIndex({|i|i>timelimit})]=0;
 					//Change polarity for the hell of it
 					if(polarity==false, {
 						this.polarity_map;polarity=true;
@@ -125,6 +129,7 @@ Sway : Singleton {
 
 					});
 				},{});
+				});
 			});
 		refresh_rate.wait;
 		count=count+1;
@@ -339,9 +344,9 @@ Sway : Singleton {
 			var feedback = delayfeedback.kr(1);
 			var local = LocalIn.ar(1) + input.ar(1);
 			var select = ToggleFF.kr(\toggle.tr(1.neg));
-			var delay1 = DelayC.ar(local, 10, Latch.kr(time, 1- select));
-			var delay2 = DelayC.ar(local, 10, Latch.kr(time, select));
-			var fade = MulAdd.new(Lag.kr(select, 2), 2, 1.neg);
+			var delay1 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, 1- select));
+			var delay2 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, select));
+			var fade = MulAdd.new(Lag2.kr(select, 4), 2, 1.neg);
 			var delay = XFade2.ar(delay1, delay2, fade);
 			LocalOut.ar(delay * feedback);
 			delay;
@@ -380,7 +385,7 @@ Sway : Singleton {
 			var envspeed = granenvspeed.kr(1);
 			var pos = granpos.kr(1);
 			var lfo = LFNoise1.kr({rate!6}).unipolar;
-			var env = VarSaw.kr(envspeed, [0,1/6,2/6,3/6,4/6,5/6], 0.5, 0.1);
+			var env = VarSaw.kr(envspeed, [0,1/6,2/6,3/6,4/6,5/6], 0.5, 0.6);
 			var sound = Mix.new(Warp1.ar(1, buffer.bufnum, lfo, rate)*env);
 			sound;
 		};
@@ -399,7 +404,8 @@ Sway : Singleton {
 			var posselect = grainpos.kr(1);
 			var gSize = grainsize.kr(1);
 		    var trig = SelectX.kr(trigselect, [Impulse.kr(freq), GaussTrig.kr(freq)]);
-			var pos = SelectX.kr(posselect, [LFSaw.kr(freq).unipolar, LFNoise2.kr(freq).unipolar]);
+			//var pos = SelectX.kr(posselect, [LFSaw.kr(freq).unipolar, LFNoise2.kr(freq).unipolar]);
+			var pos = SinOsc.ar(freq).unipolar*0.9;
 		    var sound = GrainBuf.ar(1, trig, gSize, buffer.bufnum, 1, pos);
 			sound = FreeVerb.ar(sound, rvmix.kr(1), rvsize.kr(1));
 		    sound;
@@ -441,7 +447,7 @@ Sway : Singleton {
 			//amp -> number of layers??
 			//onsets -> how far back in file does it read? Output current frame maybe?
 			var sound = PlayBuf.ar(1, buffer.bufnum, 1, 0, {buffer.numFrames.rand}!16, 1);
-			var env = SinOsc.kr(1/16, (0..15).linlin(0,15,8pi.neg,8pi), 0.9/16);
+			var env = SinOsc.kr(1/16, (0..15).linlin(0,15,8pi.neg,8pi), 0.375);
 			var mix = Limiter.ar(Mix.new(sound*env), 1);
 			mix;
 		};
@@ -479,6 +485,55 @@ Sway : Singleton {
 		});
 	}
 
+	//map single quadrant
+	map_quadrant {|num, name|
+		quadrant_map.put(num,all_processing.at(name));
+		quadrant_names.put(num,name);
+    }
+
+	//change polarity
+	change_polarity {
+		if(polarity==false, {
+			this.polarity_map;polarity=true;
+			(this.name++": polarity mapping set").postln;
+			},{
+			this.nonpolarity_map;polarity=false;
+			(this.name++": non-polarity mapping set").postln;
+		});
+	}
+
+	//fade change
+	fade_time { |time|
+		//sound
+		processing.fadeTime = time;
+		//am
+		amfreq.fadeTime = time;
+		//reverb
+		rvmix.fadeTime = time;
+		rvsize.fadeTime = time;
+		rvdamp.fadeTime = time;
+		//delay
+		delaytime.fadeTime = time;
+		delayfeedback.fadeTime = time;
+		//pitch bend
+		pbbend.fadeTime = time;
+		pbtime.fadeTime = time;
+		//grains
+		graintrig.fadeTime = time;
+		grainfreq.fadeTime = time;
+		grainpos.fadeTime = time;
+		grainsize.fadeTime = time;
+		//granular
+		granrate.fadeTime = time;
+		granpos.fadeTime = time;
+		granenvspeed.fadeTime = time;
+		//filter
+		filtfreq.fadeTime = time;
+		filtrq.fadeTime = time;
+		//freeze
+		freezefreq.fadeTime = time;
+	}
+
 	choose_new_processing {|qrant|
 		//choose_new_processing function receives a quadrant as an argument and assigns an available processing to that quadrant
 		var old, new;
@@ -501,7 +556,7 @@ Sway : Singleton {
 	reset {
 		//reset to initial parameters
 		//intial placement on processing grid
-		xy = [0.5,0.5];//random start
+		xy = [0.5,0.5];//start in center
 		tracker = [0,0,0,0,0];//number of times in each quadrant area
 		//TO DO: the number of data structures I have to keep track of the quadrants and the names of the processing and all the available processing etc feels very clunky. There must be a better way to manage all this information.
 		quadrant = Array.newClear(2);
@@ -509,10 +564,10 @@ Sway : Singleton {
 		//change the initial mapping setup here:
 		quadrant_names = Array.newClear(5);
 		quadrant_names.put(0,\silence);
-		quadrant_names.put(1,\granular);
-		quadrant_names.put(2,\delay);
-		quadrant_names.put(3,\ampmod);
-		quadrant_names.put(4,\reverb);
+		quadrant_names.put(1,\delay);
+		quadrant_names.put(2,\granular);
+		quadrant_names.put(3,\reverb);
+		quadrant_names.put(4,\ampmod);
 		all_processing = Dictionary.new;
 		all_processing.put(\silence, {this.silence});
 		all_processing.put(\delay, {this.delay});
@@ -548,6 +603,8 @@ Sway : Singleton {
 		input.free(1);
 		analysis_input.free(1);
 		buffer.free;
+		fftbuffer.free;
+		delaybuffer.free;
 		recorder.free(1);
 		processing.free(1);
 		onsets.free(1);
