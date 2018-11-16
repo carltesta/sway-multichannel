@@ -539,6 +539,7 @@ Sway : Singleton {
 		filtrq.fadeTime = time;
 		//freeze
 		freezefreq.fadeTime = time;
+		freezefade.fadeTime = time;
 	}
 
 	choose_new_processing {|qrant|
