@@ -125,19 +125,23 @@ SwayConstructor : Singleton {
 	}
 
 	solo { |newchan|
-		var old = Dictionary.new;
+		var old_input = Dictionary.new;
+		var old_processing = Dictionary.new;
 		var limit;
 		Sway.all.keysValuesDo({|key,val|
-			val.analysis_on=false;
-			old.put(key, val.input.get(\chan));
-			val.input.source = { |chan| SoundIn.ar(newchan) };
+			val.analysis_on=false;//turn off analysis to prevent movement around grid
+			old_input.put(key, val.input.get(\chan));//capture original input assignment
+			old_processing.put(key, val.quadrant_names);//capture current processing type
+			val.input.source = { |chan| SoundIn.ar(newchan) };//change all instances to same processing input
+			val.all_processing.choose.value;//choose new type of processing for each channel
 			(val.name++": Global Event Solo Beginning").postln;
 			limit = val.timelimit;
 		});
-		limit.wait;
+		limit.wait;//wait for the timelimit
 		Sway.all.keysValuesDo({|key,val|
 			(val.name++": Global Event Solo Ending").postln;
-			val.input.source = { |chan| SoundIn.ar(old.at(key)) };
+			val.input.source = { |chan| SoundIn.ar(old_input.at(key)) };//reapply the current inputs
+			val.map_quadrants(old_processing.at(key));//map based on the old processing
 			val.global_change=false;
 			val.quadrant_flag=true;
 			val.analysis_on=true;

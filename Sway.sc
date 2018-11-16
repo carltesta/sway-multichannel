@@ -3,7 +3,7 @@ Sway : Singleton {
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezefreq, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>amp_thresh=4, <>clarity_thresh=0.6, <>density_thresh=1.5, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezefreq, <>freezefade, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>amp_thresh=4, <>clarity_thresh=0.6, <>density_thresh=1.5, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
 
     init {
 		//Setup initial parameters
@@ -69,8 +69,11 @@ Sway : Singleton {
 			//if signal is above amplitude threshold do analysis
 			amplitude.bus.get({|val|
 				if(verbose==true,{(this.name++" amp: "++val[1]).postln});
-				if( val[1] > amp_thresh, {
+				if( val[0] > amp_thresh, {//change it so that the amplitude thresh boolean is more accurate
 					above_amp_thresh=true;
+				}, {above_amp_thresh=false;});
+
+				if( val[1] > amp_thresh, { //conduct analysis if longer averaged amp is above threshold
 					if(verbose==true,{(this.name++" amp threshold reached").postln});
 					clarity.bus.get({|val|
 						//if(verbose==true,{(this.name++" clarity: "++val[1]).postln});
@@ -91,7 +94,6 @@ Sway : Singleton {
 					//("analysis movement: "++xy).postln;
 				}, {
 			//else if below threshold drift to center
-					above_amp_thresh=false;
 					if(verbose==true,{(this.name++" drift to center").postln});
 					if(xy[0] > 0.5, {
 						(xy[0]=xy[0]-gravity).clip(0,0.5)},{
@@ -207,6 +209,7 @@ Sway : Singleton {
 		filtrq = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		//freeze
 		freezefreq = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		freezefade = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 
 	}
 
@@ -242,7 +245,8 @@ Sway : Singleton {
 		filtfreq.source = { onsets.kr(1,0).linlin(0,6,500,5000) };
 		filtrq.source = { amplitude.kr(1,0).linlin(0,10,0.3,0.8) };
 		//freeze
-		freezefreq.source = { onsets.kr(1,0).linlin(0,6,0.5,4) };
+		freezefreq.source = { onsets.kr(1,0).linlin(0,6,0.5,6) };
+		freezefade.source = { onsets.kr(1,0).linlin(0,6,3,0.3) };
 
 
 	}
@@ -280,7 +284,8 @@ Sway : Singleton {
 		filtfreq.source = { onsets.kr(1,0).linlin(0,6,5000,500) };
 		filtrq.source = { amplitude.kr(1,0).linlin(0,10,0.9,0.3) };
 		//freeze
-		freezefreq.source = { onsets.kr(1,0).linlin(0,6,4,0.5) };
+		freezefreq.source = { onsets.kr(1,0).linlin(0,6,6,0.5) };
+		freezefade.source = { onsets.kr(1,0).linlin(0,6,0.3,3) };
 	}
 
 	//TO DO: I'm wondering if I should completely separate out the processing from the analysis into a separate class. I wonder if it might make it easier in the future to create different results from the Sway analysis. Like Sway analysis controls audio processing or lighting or both. But if I put in audio processing in the main class then I won't have a chance to easily just have lighting control. Or perhaps I'd want only lighting for the first half of the show and then start the audio processing mid-way.
@@ -323,10 +328,12 @@ Sway : Singleton {
 			var out = XFade2.ar(Silent.ar(), input.ar(1), fade);
 			//then begin freeze
 			var freeze;
-			var trigger = Lag2.ar(LFClipNoise.ar(freezefreq.kr(1)), 0.3);
+			var amplitude = Amplitude.kr(out);
+			var trig = amplitude > 0.2;
+			var gate = Gate.kr(LFClipNoise.kr(freezefreq.kr(1)),trig);
 			var chain = FFT(fftbuffer, out);
-			chain = PV_Freeze(chain, trigger);
-			freeze = XFade2.ar(Silent.ar(), IFFT(chain), trigger);
+			chain = PV_Freeze(chain, gate);
+			freeze = XFade2.ar(Silent.ar(), IFFT(chain), Lag2.kr(gate,freezefade.kr(1)));
 			freeze = FreeVerb.ar(freeze, rvmix.kr(1), rvsize.kr(1));
 			freeze = HPF.ar(freeze, 20);
 			freeze;
