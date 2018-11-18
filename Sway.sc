@@ -392,7 +392,7 @@ Sway : Singleton {
 			var envspeed = granenvspeed.kr(1);
 			var pos = granpos.kr(1);
 			var lfo = LFNoise1.kr({rate!6}).unipolar;
-			var env = VarSaw.kr(envspeed, [0,1/6,2/6,3/6,4/6,5/6], 0.5, 0.6);
+			var env = VarSaw.kr(envspeed, [0,1/6,2/6,3/6,4/6,5/6], 0.5, 0.2);
 			var sound = Mix.new(Warp1.ar(1, buffer.bufnum, lfo, rate)*env);
 			sound;
 		};
@@ -454,7 +454,7 @@ Sway : Singleton {
 			//amp -> number of layers??
 			//onsets -> how far back in file does it read? Output current frame maybe?
 			var sound = PlayBuf.ar(1, buffer.bufnum, 1, 0, {buffer.numFrames.rand}!16, 1);
-			var env = SinOsc.kr(1/16, (0..15).linlin(0,15,8pi.neg,8pi), 0.375);
+			var env = SinOsc.kr(1/16, (0..15).linlin(0,15,8pi.neg,8pi), 0.2);
 			var mix = Limiter.ar(Mix.new(sound*env), 1);
 			mix;
 		};
@@ -635,9 +635,13 @@ Sway : Singleton {
 		granpos.free(1);
 		granenvspeed.free(1);
 		granrate.free(1);
+		filtfreq.free(1);
+		filtrq.free(1);
+		freezefreq.free(1);
+		freezefade.free(1);
 		analysis_loop.stop;
 		this.clear;
-		Server.freeAll;
+		//Server.freeAll;
 	}
 
 }
