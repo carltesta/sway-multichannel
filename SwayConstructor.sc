@@ -108,9 +108,10 @@ SwayConstructor : Singleton {
 			quadrant.put(key, val.quadrant[0]);
 			});
 		case
-		{quadrant.every({|item|item==1})}{this.decouple_all}
-		{quadrant.every({|item|item==2})}{this.delay_all}
-		{quadrant.every({|item|item==3})}{this.cascade_all}
+		{quadrant.every({|item|item==2})}{this.decouple_all}
+		{quadrant.every({|item|item==1})}{this.delay_all}
+		{quadrant.every({|item|item==3})}{this.texture_all}
+		{quadrant.every({|item|item==4})}{this.cascade_all}
 		{quadrant.every({|item|item==0})}{this.silence_all};
 	}
 
@@ -184,6 +185,26 @@ SwayConstructor : Singleton {
 		limit.wait;
 		Sway.all.keysValuesDo({|key,val|
 			(val.name++": Global Delay Complete").postln;
+			val.map_quadrants(old.at(key));
+			val.analysis_on=true;
+			val.global_change=false;
+			val.quadrant_flag=true;
+		});
+	}
+
+	texture_all {
+		var old = Dictionary.new;
+		var limit;
+		Sway.all.keysValuesDo({|key,val|
+			val.analysis_on=false;
+			old.put(key, val.quadrant_names);
+			val.textural;
+			(val.name++": Global Texture Landscape Beginning").postln;
+			limit = val.timelimit;
+		});
+		limit.wait;
+		Sway.all.keysValuesDo({|key,val|
+			(val.name++": Global Texture Landscape Complete").postln;
 			val.map_quadrants(old.at(key));
 			val.analysis_on=true;
 			val.global_change=false;

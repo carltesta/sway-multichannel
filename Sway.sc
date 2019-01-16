@@ -3,11 +3,23 @@ Sway : Singleton {
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezefreq, <>freezefade, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>amp_thresh=4, <>clarity_thresh=0.6, <>density_thresh=1.5, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezefreq, <>freezefade, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
 
     init {
 		//Setup initial parameters
 		this.reset;
+
+		Routine.new({
+			SynthDef(\textureStretch, {|bufnum, rate=1, posrate=0.1, postype=0, gSize=0.1 amp=0.5, out, gate=1|
+			var sound, lfo, env;
+			env = EnvGen.kr(Env.adsr(0.1,0.5,0.9,1,0.9,-1), gate, doneAction: 2);
+			lfo = Select.kr(postype, LFTri.kr(posrate).unipolar, LFNoise0.kr(posrate).unipolar);
+			sound = Warp1.ar(1, bufnum, lfo, rate, gSize, -1, 8, 0.1, 2) * env;
+			Out.ar(out, sound*amp);
+			}).add;
+
+			Server.default.sync;
+		}).play;
 
 		//audio input with chan argument
 		input = NodeProxy.audio(Server.default, 1).fadeTime_(fade)
@@ -69,15 +81,15 @@ Sway : Singleton {
 			//if signal is above amplitude threshold do analysis
 			amplitude.bus.get({|val|
 				if(verbose==true,{(this.name++" amp: "++val[1]).postln});
-				if( val[0] > amp_thresh, {//change it so that the amplitude thresh boolean is more accurate
+				if( val[0] > thresholds.at(\amp), {//change it so that the amplitude thresh boolean is more accurate
 					above_amp_thresh=true;
 				}, {above_amp_thresh=false;});
 
-				if( val[1] > amp_thresh, { //conduct analysis if longer averaged amp is above threshold
+				if( val[1] > thresholds.at(\amp), { //conduct analysis if longer averaged amp is above threshold
 					if(verbose==true,{(this.name++" amp threshold reached").postln});
 					clarity.bus.get({|val|
 						//if(verbose==true,{(this.name++" clarity: "++val[1]).postln});
-						if( val[1] > clarity_thresh,
+						if( val[1] > thresholds.at(\clarity),
 							{above_clarity_thresh=true;
 							xy[0]=(xy[0]+step).clip(0,1)},
 							{above_clarity_thresh=false;
@@ -85,7 +97,7 @@ Sway : Singleton {
 					});
 					onsets.bus.get({|val|
 						//if(verbose==true,{(this.name++" onsets: "++val[1]).postln});
-						if( val[1] > density_thresh,
+						if( val[1] > thresholds.at(\density),
 							{above_density_thresh=true;
 							xy[1]=(xy[1]+step).clip(0,1)},
 							{above_density_thresh=false;
@@ -210,6 +222,14 @@ Sway : Singleton {
 		//freeze
 		freezefreq = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		freezefade = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		//textural
+		texturalmin = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		texturalmax = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		texturalsusmin = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		texturalsusmax = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		texturalposrate = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		texturalpostype = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		texturalrate = PatternProxy();
 
 	}
 
@@ -247,6 +267,13 @@ Sway : Singleton {
 		//freeze
 		freezefreq.source = { onsets.kr(1,0).linlin(0,6,0.5,6) };
 		freezefade.source = { onsets.kr(1,0).linlin(0,6,3,0.3) };
+		texturalmin.source = { onsets.kr(1,0).linlin(0,6,1.5,0.1) };
+		texturalmax.source = { onsets.kr(1,0).linlin(0,6,3.0,2.0) };
+		texturalsusmin.source = { onsets.kr(1,0).linlin(0,6,1.5,0.2) };
+		texturalsusmax.source = { onsets.kr(1,0).linlin(0,6,3.0,2.0) };
+		texturalposrate.source = { clarity.kr(1,0).linlin(0,1,0.5,0.01) };
+		texturalpostype.source = { clarity.kr(1,0).linlin(0,1,1,0).round };
+		texturalrate.source = Prand([1,0.5], inf);
 
 
 	}
@@ -286,6 +313,14 @@ Sway : Singleton {
 		//freeze
 		freezefreq.source = { onsets.kr(1,0).linlin(0,6,6,0.5) };
 		freezefade.source = { onsets.kr(1,0).linlin(0,6,0.3,3) };
+		//textural
+		texturalmin.source = { onsets.kr(1,0).linlin(0,6,0.1,1.5) };
+		texturalmax.source = { onsets.kr(1,0).linlin(0,6,2.0,3.0) };
+		texturalsusmin.source = { onsets.kr(1,0).linlin(0,6,0.2,1.5) };
+		texturalsusmax.source = { onsets.kr(1,0).linlin(0,6,2.0,3.0) };
+		texturalposrate.source = { clarity.kr(1,0).linlin(0,1,0.01,0.5) };
+		texturalpostype.source = { clarity.kr(1,0).linlin(0,1,0,1).round };
+		texturalrate.source = Prand([4,2,0.5,0.25], inf);
 	}
 
 	//TO DO: I'm wondering if I should completely separate out the processing from the analysis into a separate class. I wonder if it might make it easier in the future to create different results from the Sway analysis. Like Sway analysis controls audio processing or lighting or both. But if I put in audio processing in the main class then I won't have a chance to easily just have lighting control. Or perhaps I'd want only lighting for the first half of the show and then start the audio processing mid-way.
@@ -420,6 +455,30 @@ Sway : Singleton {
 		(this.name++": Grains").postln;
 	}
 
+	//Change processing to textural synth from IRIS
+	textural {
+		//control mapping
+		//onsets -> dur min/max
+		//onsets -> sustain min/max
+		//clarity -> position rate
+		//polarity -> rate
+		processing.source = Pbind(
+			\instrument, \textureStretch,
+			//\dur, Pwhite(0.1,3.0,inf),
+			\dur, Pwhite(Pfunc({texturalmin.bus.getSynchronous}),Pfunc({texturalmax.bus.getSynchronous}),inf),
+			//\sustain, Pwhite(0.05, 4.0, inf),
+			\sustain, Pwhite(Pfunc({texturalsusmin.bus.getSynchronous}),Pfunc({texturalsusmax.bus.getSynchronous}),inf),
+			\gSize, Pwhite(0.1,1.0,inf),
+			\stretch, Pwhite(0.8,2.0,inf),
+			\bufnum, buffer.bufnum,
+			//\posrate, 0.1,
+			\posrate, Pfunc({texturalposrate.bus.getSynchronous}),
+			\rate, texturalrate,
+			\amp, 0.35,
+			);
+		(this.name++": Textural").postln;
+	}
+
 	//TO DO: Work on this grain processing, perhaps change it to a PatternProxy running the texturestretch synthdef??
 
 	//Change processing to grains
@@ -540,6 +599,14 @@ Sway : Singleton {
 		//freeze
 		freezefreq.fadeTime = time;
 		freezefade.fadeTime = time;
+		//textural
+		texturalmin.fadeTime = time;
+		texturalmax.fadeTime = time;
+		texturalsusmin.fadeTime = time;
+		texturalsusmax.fadeTime = time;
+		texturalposrate.fadeTime = time;
+		texturalpostype.fadeTime = time;
+		//texturalrate.fadeTime = time;
 	}
 
 	choose_new_processing {|qrant|
@@ -567,13 +634,19 @@ Sway : Singleton {
 		xy = [0.5,0.5];//start in center
 		tracker = [0,0,0,0,0];//number of times in each quadrant area
 		//TO DO: the number of data structures I have to keep track of the quadrants and the names of the processing and all the available processing etc feels very clunky. There must be a better way to manage all this information.
+		//Experimenting with Dictionary for Threshold Data structure
+		thresholds = Dictionary.new;
+		thresholds.putPairs([\amp, 4, \clarity, 0.6, \density, 1.5]);
+		//If an old archive of thresholds doesn't exist, create it with the default values
+		if(Archive.global.at(("sway"++this.name++"thresholds").asSymbol).isNil, {
+			Archive.global.put(("sway"++this.name++"thresholds").asSymbol, thresholds);},{});
 		quadrant = Array.newClear(2);
 		quadrant_map = Array.newClear(5);
 		//change the initial mapping setup here:
 		quadrant_names = Array.newClear(5);
 		quadrant_names.put(0,\silence);
 		quadrant_names.put(1,\delay);
-		quadrant_names.put(2,\granular);
+		quadrant_names.put(2,\textural);
 		quadrant_names.put(3,\reverb);
 		quadrant_names.put(4,\ampmod);
 		all_processing = Dictionary.new;
@@ -582,7 +655,7 @@ Sway : Singleton {
 		all_processing.put(\reverb, {this.reverb});
 		all_processing.put(\ampmod, {this.ampmod});
 		all_processing.put(\granular, {this.granular});
-		all_processing.put(\grains, {this.grains});
+		all_processing.put(\textural, {this.textural});
 		all_processing.put(\pitchbend, {this.pitchbend});
 		all_processing.put(\cascade, {this.cascade});
 		all_processing.put(\filter, {this.filter});
@@ -594,7 +667,7 @@ Sway : Singleton {
 		available_processing.put(\reverb, {this.reverb});
 		available_processing.put(\ampmod, {this.ampmod});
 		available_processing.put(\granular, {this.granular});
-		available_processing.put(\grains, {this.grains});
+		available_processing.put(\textural, {this.textural});
 		available_processing.put(\pitchbend, {this.pitchbend});
 		available_processing.put(\cascade, {this.cascade});
 		available_processing.put(\filter, {this.filter});
@@ -639,6 +712,13 @@ Sway : Singleton {
 		filtrq.free(1);
 		freezefreq.free(1);
 		freezefade.free(1);
+		texturalmin.free(1);
+		texturalmax.free(1);
+		texturalsusmin.free(1);
+		texturalsusmax.free(1);
+		texturalposrate.free(1);
+		texturalpostype.free(1);
+		texturalrate.free(1);
 		analysis_loop.stop;
 		this.clear;
 		//Server.freeAll;

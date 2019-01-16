@@ -3,16 +3,17 @@ SwayGUI : Singleton {
 	//Processing Graph GUI for Sway
 	//Used to be part of Sway class, but separated it out for rebuild of prototype 3
 
-	var <>win, color_scheme, main, view, text, amp_sliders, step_slider, grav_slider, refresh_slider, mixer_slider, updater, formatted_x, formatted_y;
+	var <>win, testwin, testview, testcolumn, testrow, color_scheme, main, view, text, amp_sliders, step_slider, grav_slider, refresh_slider, mixer_slider, updater, formatted_x, formatted_y;
 
    init {
-		win = Window("Sway - Prototype 3", Rect(0, 300, 1200, 600));
+		win = Window("Sway", Rect(0, 600, 1200, 300));
 		win.onClose_({this.clear});
 
 		//Use a differing color scheme to different what GUI goes with which channel
 		color_scheme = [Color.white, Color.yellow, Color.green, Color.blue, Color.red, Color.gray];
 
-		main = View.new(win,Rect(0,0,1200,600))
+		main = View.new(win,Rect(0,0,1200,300))
+		//.decorator_(FlowLayout(Rect(0,0,1200,600),10@10,5@5));
 		.layout_(HLayout());
 
 		//Format the x/y coordinates to be input into the GUI
@@ -60,41 +61,56 @@ SwayGUI : Singleton {
 
 		//Amp sliders
 		Sway.all.keysValuesDo({|name, instance, i|
-			Slider(main, Rect(0,0,25,100))
+			var comp = View.new(main, 10@10)
+	        .layout_(VLayout());
+			Slider(comp, 10@10)
 			.step_(0.01)
-		    .value_(instance.amp_thresh/40)
+			.value_(Archive.global.at(("sway"++name++"thresholds").asSymbol).at(\amp)/40)
 			.background_(color_scheme[i%6])
 			.knobColor_(color_scheme[i%6])
 			.action_({|val|
-				instance.amp_thresh=val.value*40;
+				instance.thresholds.put(\amp, val.value*40);
 				(name++": amp threshold: "++(val.value*40)).postln;
+				Archive.global.put(("sway"++name++"thresholds").asSymbol, instance.thresholds);
 			});
+			StaticText(comp, 10@10)
+			.string_(("a"++name));
 		});
 
 		//density
 		Sway.all.keysValuesDo({|name, instance, i|
-			Slider(main, Rect(0,0,25,100))
+			var comp = CompositeView.new(main, Rect(0,0,10,130))
+	        .layout_(VLayout());
+			Slider(comp, Rect(0,0,10,100))
 			.step_(0.01)
-		    .value_(instance.density_thresh/5)
+			.value_(Archive.global.at(("sway"++name++"thresholds").asSymbol).at(\density)/5)
 			.background_(color_scheme[i%6])
 			.knobColor_(color_scheme[i%6])
 			.action_({|val|
-				instance.density_thresh=val.value*5;
+				instance.thresholds.put(\density, val.value*5);
 				(name++": density threshold: "++(val.value*5)).postln;
+				Archive.global.put(("sway"++name++"thresholds").asSymbol, instance.thresholds);
 			});
+			StaticText(comp, Rect(0,0,20,20))
+			.string_(("d"++name));
 		});
 
 		//clarity
 		Sway.all.keysValuesDo({|name, instance, i|
-			Slider(main, Rect(0,0,25,100))
+			var comp = CompositeView.new(main, Rect(0,0,10,130))
+	        .layout_(VLayout());
+			Slider(comp, Rect(0,0,10,100))
 			.step_(0.01)
-		    .value_(instance.clarity_thresh)
+			.value_(Archive.global.at(("sway"++name++"thresholds").asSymbol).at(\clarity))
 			.background_(color_scheme[i%6])
 			.knobColor_(color_scheme[i%6])
 			.action_({|val|
-				instance.clarity_thresh=val.value;
+				instance.thresholds.put(\clarity, val.value);
 				(name++": clarity threshold: "++(val.value)).postln;
+				Archive.global.put(("sway"++name++"thresholds").asSymbol, instance.thresholds);
 			});
+			StaticText(comp, Rect(0,0,20,20))
+			.string_(("c"++name));
 		});
 
 		//step
@@ -135,6 +151,131 @@ SwayGUI : Singleton {
 			});
 
 		win.front;
+
+		//testing GUI
+		testwin = Window("Sway-Controls", Rect(350, 100, 1000, 300));
+		testview = FlowView(testwin);
+		//turn verbose on and off for each channel
+		Sway.all.keysValuesDo({|name, instance, i|
+			Button(testview, Rect(0,0,100,50))
+			.states_([
+				[(name++" verbose off"), Color.black, Color.gray],
+				[(name++" verbose on"), Color.black, Color.red]
+			])
+			.action_({|but|
+				if(but.value==1, {instance.verbose=true},{instance.verbose=false});
+				but.postln;
+			});
+		});
+		testview.startRow;
+
+		//turn analysis on and off for each channel
+		Sway.all.keysValuesDo({|name, instance, i|
+			Button(testview, Rect(0,0,100,50))
+			.states_([
+				[(name++" analysis on"), Color.black, Color.green],
+				[(name++" analysis off"), Color.black, Color.gray]
+			])
+			.action_({|but|
+				if(but.value==0, {instance.analysis_on=true},{instance.analysis_on=false});
+				but.postln;
+			});
+		});
+
+		testview.startRow;
+			//change processing type for all channels to test levels
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["silence all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.silence;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["reverb all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.reverb;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["amp mod all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.ampmod;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["delay all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.delay;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["pitchbend all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.pitchbend;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["filter all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.filter;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["granular all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.granular;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["textural all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.textural;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["cascade all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.cascade;
+			});
+		});
+
+		testwin.front;
 
 		//gui updater task
 		updater = TaskProxy.new({ loop {
