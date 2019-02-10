@@ -3,7 +3,7 @@ Sway : Singleton {
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezefreq, <>freezefade, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=15, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=100, <>available_processing, <>all_processing, <>global_change=false;
 
     init {
 		//Setup initial parameters
@@ -18,12 +18,24 @@ Sway : Singleton {
 			Out.ar(out, sound*amp);
 			}).add;
 
+			SynthDef(\freeze, {
+			|in = 0, out=0, buf1, buf2, amp=1, ratio=1, pitchd=0, pitcht=0, sourceVol=1, gate=1|
+			var input, freeze1, env, fade, fadeTime=0.1, chain1, trig, pitch;
+			trig = Trig.kr(\trigger.tr(1)).linlin(0,1,1,0);
+			input = In.ar(in)*sourceVol.lag(0.1);
+			chain1 = FFT(buf1, input);
+			freeze1 = PV_Freeze(chain1, trig);
+			freeze1 = IFFT(freeze1)*amp;
+			env = EnvGen.kr(Env.adsr(0.1,0.5,0.9,1,0.9,-1), gate, doneAction: 2);
+			Out.ar(out, freeze1*env);
+			}).add;
+
 			Server.default.sync;
 		}).play;
 
 		//audio input with chan argument
 		input = NodeProxy.audio(Server.default, 1).fadeTime_(fade)
-		.source = { |chan=0| SoundIn.ar(chan) };
+		.source = { |chan=0| SoundIn.ar(chan,1.neg) };
 
 		//fft
 		fftbuffer = Buffer.alloc(Server.default, 1024);
@@ -220,8 +232,9 @@ Sway : Singleton {
 		filtfreq = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		filtrq = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		//freeze
-		freezefreq = NodeProxy.control(Server.default, 1).fadeTime_(fade);
-		freezefade = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		freezedurmin = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		freezedurmax = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		freezeleg = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		//textural
 		texturalmin = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		texturalmax = NodeProxy.control(Server.default, 1).fadeTime_(fade);
@@ -265,8 +278,10 @@ Sway : Singleton {
 		filtfreq.source = { onsets.kr(1,0).linlin(0,6,500,5000) };
 		filtrq.source = { amplitude.kr(1,0).linlin(0,10,0.3,0.8) };
 		//freeze
-		freezefreq.source = { onsets.kr(1,0).linlin(0,6,0.5,6) };
-		freezefade.source = { onsets.kr(1,0).linlin(0,6,3,0.3) };
+		freezedurmin.source = { onsets.kr(1,0).linlin(0,6,2,0.25) };
+		freezedurmax.source = { onsets.kr(1,0).linlin(0,6,4,0.5) };
+		freezeleg.source = { onsets.kr(1,0).linlin(0,6,4,1.5) };
+		//textural
 		texturalmin.source = { onsets.kr(1,0).linlin(0,6,1.5,0.1) };
 		texturalmax.source = { onsets.kr(1,0).linlin(0,6,3.0,2.0) };
 		texturalsusmin.source = { onsets.kr(1,0).linlin(0,6,1.5,0.2) };
@@ -311,8 +326,9 @@ Sway : Singleton {
 		filtfreq.source = { onsets.kr(1,0).linlin(0,6,5000,500) };
 		filtrq.source = { amplitude.kr(1,0).linlin(0,10,0.9,0.3) };
 		//freeze
-		freezefreq.source = { onsets.kr(1,0).linlin(0,6,6,0.5) };
-		freezefade.source = { onsets.kr(1,0).linlin(0,6,0.3,3) };
+		freezedurmin.source = { onsets.kr(1,0).linlin(0,6,0.25,2) };
+		freezedurmax.source = { onsets.kr(1,0).linlin(0,6,0.5,4) };
+		freezeleg.source = { onsets.kr(1,0).linlin(0,6,1.5,4) };
 		//textural
 		texturalmin.source = { onsets.kr(1,0).linlin(0,6,0.1,1.5) };
 		texturalmax.source = { onsets.kr(1,0).linlin(0,6,2.0,3.0) };
@@ -350,6 +366,7 @@ Sway : Singleton {
 		(this.name++": Reverb").postln;
 		}
 
+	/*
 	//Change processing to freeze
 	freeze {
 		//control mapping:
@@ -375,6 +392,27 @@ Sway : Singleton {
 		};
 		(this.name++": Freeze").postln;
 	}
+	*/
+
+	//Alternate Freeze
+	//Change processing to alternate freeze from norns sketch
+	freeze {
+		//control mapping
+		//onsets -> duration
+		//onsets -> legato
+		//clarity ->
+		//polarity ->
+		processing.source = Pbind(
+			\instrument, \freeze,
+			\in, input.bus.index,
+			\dur, Pwhite(Pfunc({freezedurmin.bus.getSynchronous}),Pfunc({freezedurmax.bus.getSynchronous}),inf),
+			\trigger, 1,
+			\buf1, fftbuffer.bufnum,
+			\legato,Pkey(\dur)*Pfunc({freezeleg.bus.getSynchronous}),
+			\amp, Pwhite(0.6,0.8),
+			);
+		(this.name++": Freeze Pattern").postln;
+	}
 
 	//Change processing to delay
 	delay {
@@ -384,7 +422,7 @@ Sway : Singleton {
 		processing.source = {
 			var time = Latch.kr(delaytime.kr(1), \trigger.tr);
 			var feedback = delayfeedback.kr(1);
-			var local = LocalIn.ar(1) + input.ar(1);
+			var local = LocalIn.ar(1) + (input.ar(1));
 			var select = ToggleFF.kr(\toggle.tr(1.neg));
 			var delay1 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, 1- select));
 			var delay2 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, select));
@@ -597,8 +635,9 @@ Sway : Singleton {
 		filtfreq.fadeTime = time;
 		filtrq.fadeTime = time;
 		//freeze
-		freezefreq.fadeTime = time;
-		freezefade.fadeTime = time;
+		freezedurmin.fadeTime = time;
+		freezedurmax.fadeTime = time;
+		freezeleg.fadeTime = time;
 		//textural
 		texturalmin.fadeTime = time;
 		texturalmax.fadeTime = time;
@@ -710,8 +749,9 @@ Sway : Singleton {
 		granrate.free(1);
 		filtfreq.free(1);
 		filtrq.free(1);
-		freezefreq.free(1);
-		freezefade.free(1);
+		freezedurmin.free(1);
+		freezedurmax.free(1);
+		freezeleg.free(1);
 		texturalmin.free(1);
 		texturalmax.free(1);
 		texturalsusmin.free(1);

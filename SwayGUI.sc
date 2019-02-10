@@ -153,7 +153,7 @@ SwayGUI : Singleton {
 		win.front;
 
 		//testing GUI
-		testwin = Window("Sway-Controls", Rect(350, 100, 1000, 300));
+		testwin = Window("Sway-Controls", Rect(250, 100, 1200, 300));
 		testview = FlowView(testwin);
 		//turn verbose on and off for each channel
 		Sway.all.keysValuesDo({|name, instance, i|
@@ -222,6 +222,16 @@ SwayGUI : Singleton {
 		.action_({|but|
 			Sway.all.keysValuesDo({|name, instance, i|
 				instance.delay;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["freeze all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.freeze;
 			});
 		});
 
