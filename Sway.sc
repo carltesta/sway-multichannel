@@ -3,7 +3,7 @@ Sway : Singleton {
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=15, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=100, <>available_processing, <>all_processing, <>global_change=false;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=15, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
 
     init {
 		//Setup initial parameters
@@ -215,6 +215,7 @@ Sway : Singleton {
 		//delay
 		delaytime = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		delayfeedback = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		delaysourcevol = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		delaylatch = TaskProxy.new().play;
 		//pitch bend
 		pbbend = NodeProxy.control(Server.default, 1).fadeTime_(fade);
@@ -257,7 +258,8 @@ Sway : Singleton {
 		rvdamp.source = { clarity.kr(1,0).linlin(0,1,1,0) };
 		//delay
 		delaytime.source = { onsets.kr(1,0).linexp(0,7,0.5,9) };
-		delayfeedback.source = { onsets.kr(1,0).linlin(0,10,0.5,0.05)};
+		delayfeedback.source = { onsets.kr(1,0).linlin(0,10,0.5,0.05) };
+		delaysourcevol.source = { onsets.kr(1,0).linlin(0,10,0.7,1) };
 		delaylatch.source = { loop {
 			5.0.wait;
 			if(0.5.coin, { processing.set(\trigger, 1, \toggle, 1) });
@@ -306,6 +308,7 @@ Sway : Singleton {
 		//delay
 		delaytime.source = { onsets.kr(1,0).linexp(0,7,9,0.5) };
 		delayfeedback.source = { onsets.kr(1,0).linlin(0,10,0.05,0.5)};
+		delaysourcevol.source = { onsets.kr(1,0).linlin(0,10,1,0.7) };
 		delaylatch.source = { loop {
 			0.5.wait;
 			if(0.5.coin, { processing.set(\trigger, 1, \toggle, 1) });
@@ -346,7 +349,7 @@ Sway : Singleton {
 		//control mapping:
 		//amplitude -> freq
 		processing.source = {
-			var off = Lag2.kr(A2K.kr(DetectSilence.ar(input.ar(1),0.05),0.3));
+			var off = Lag2.kr(A2K.kr(DetectSilence.ar(input.ar(1),0.02),0.3));
             var on = 1-off;
 			var fade = MulAdd.new(on, 2, 1.neg);
 			var out = XFade2.ar(Silent.ar(), input.ar(1), fade);
@@ -422,7 +425,8 @@ Sway : Singleton {
 		processing.source = {
 			var time = Latch.kr(delaytime.kr(1), \trigger.tr);
 			var feedback = delayfeedback.kr(1);
-			var local = LocalIn.ar(1) + (input.ar(1));
+			var sourcevol = delaysourcevol.kr(1);
+			var local = LocalIn.ar(1) + (input.ar(1)*sourcevol);
 			var select = ToggleFF.kr(\toggle.tr(1.neg));
 			var delay1 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, 1- select));
 			var delay2 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, select));
