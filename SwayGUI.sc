@@ -182,6 +182,14 @@ SwayGUI : Singleton {
 			});
 		});
 
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["reset all", Color.black, Color.white]
+		])
+		.action_({|but|
+			SwayConstructor(\sway).reset_all;
+		});
+
 		testview.startRow;
 			//change processing type for all channels to test levels
 
@@ -282,6 +290,16 @@ SwayGUI : Singleton {
 		.action_({|but|
 			Sway.all.keysValuesDo({|name, instance, i|
 				instance.cascade;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["waveloss all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.waveloss;
 			});
 		});
 

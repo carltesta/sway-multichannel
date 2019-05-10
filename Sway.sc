@@ -1,9 +1,10 @@
 Sway : Singleton {
 	//Carl Testa 2018
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
-	classvar <>short_win=1, <>long_win=30, <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
+	classvar <>short_win=1, <>long_win=30, <>refresh_rate=0.0625, <>gravity=0.002, <>step=0.002;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=15, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=15, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
+<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
 
     init {
 		//Setup initial parameters
@@ -244,6 +245,10 @@ Sway : Singleton {
 		texturalposrate = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		texturalpostype = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		texturalrate = PatternProxy();
+		//waveloss
+		wldrop = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		wloutof = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		wlmode = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 
 	}
 
@@ -254,7 +259,7 @@ Sway : Singleton {
 		amfreq.source = { amplitude.kr(1,0).linlin(0,30,1,14)};
 		//reverb
 		rvmix.source = { onsets.kr(1,0).linlin(0,6,0.3,1) };
-		rvsize.source = { amplitude.kr(1,0).linlin(0,30,0.3,1) };
+		rvsize.source = { amplitude.kr(1,1).linlin(0,30,0.3,1) };
 		rvdamp.source = { clarity.kr(1,0).linlin(0,1,1,0) };
 		//delay
 		delaytime.source = { onsets.kr(1,0).linexp(0,7,0.5,9) };
@@ -291,6 +296,10 @@ Sway : Singleton {
 		texturalposrate.source = { clarity.kr(1,0).linlin(0,1,0.5,0.01) };
 		texturalpostype.source = { clarity.kr(1,0).linlin(0,1,1,0).round };
 		texturalrate.source = Prand([1,0.5], inf);
+		//waveloss
+		wldrop.source = { onsets.kr(1,0).linlin(0,6,1,35) };
+		wloutof.source = { onsets.kr(1,0).linlin(0,6,10,40) };
+		wlmode.source = { clarity.kr(1,0).linlin(0,1,2,1).round };
 
 
 	}
@@ -302,7 +311,7 @@ Sway : Singleton {
 		//reverb
 
 		rvmix.source = { onsets.kr(1,0).linlin(0,6,0.8,0.5) };
-		rvsize.source = { amplitude.kr(1,0).linlin(0,30,0.9,0.7) };
+		rvsize.source = { amplitude.kr(1,1).linlin(0,30,0.9,0.7) };
 		rvdamp.source = { clarity.kr(1,0).linlin(0,1,0.2,1) };
 
 		//delay
@@ -340,6 +349,10 @@ Sway : Singleton {
 		texturalposrate.source = { clarity.kr(1,0).linlin(0,1,0.01,0.5) };
 		texturalpostype.source = { clarity.kr(1,0).linlin(0,1,0,1).round };
 		texturalrate.source = Prand([4,2,0.5,0.25], inf);
+		//waveloss
+		wldrop.source = { onsets.kr(1,0).linlin(0,6,35,1) };
+		wloutof.source = { onsets.kr(1,0).linlin(0,6,40,10) };
+		wlmode.source = { clarity.kr(1,0).linlin(0,1,1,2).round };
 	}
 
 	//TO DO: I'm wondering if I should completely separate out the processing from the analysis into a separate class. I wonder if it might make it easier in the future to create different results from the Sway analysis. Like Sway analysis controls audio processing or lighting or both. But if I put in audio processing in the main class then I won't have a chance to easily just have lighting control. Or perhaps I'd want only lighting for the first half of the show and then start the audio processing mid-way.
@@ -360,6 +373,23 @@ Sway : Singleton {
 		(this.name++": Amplitude Modulation").postln;
 	}
 
+	//Change processing to Pitch tracking Ring Modulator
+	ringmod {
+		//control mapping:
+		//TBD
+		processing.source = {
+			var freq, hasFreq, setFreq, amp, mod, ring, verb;
+			# freq, hasFreq = Pitch.kr(input.ar(1), ampThreshold: 0.02, median: 7);
+			setFreq = Latch.kr(freq, hasFreq);
+			//amp = Amplitude.kr(input.ar(1));
+			mod = Saw.ar(setFreq);
+			ring = input.ar(1)*mod;
+			verb = FreeVerb.ar(in: ring, mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
+			verb;
+		};
+		(this.name++": Ring Modulation").postln;
+	}
+
 	//Change processing to reverb
 	reverb {
 		//control mapping:
@@ -367,6 +397,20 @@ Sway : Singleton {
 		//amplitude -> roomsize
 		processing.source = { FreeVerb.ar(in: input.ar(1), mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1)) };
 		(this.name++": Reverb").postln;
+		}
+
+	//Change processing to waveloss
+	waveloss {
+		//control mapping:
+		//polarity -> deterministic loss/random loss
+		processing.source = {
+			var preverb, waveloss, reverb;
+			preverb = FreeVerb.ar(in: input.ar(1), mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
+			waveloss = WaveLoss.ar(preverb, wldrop.kr(1), wloutof.kr(1), wlmode.kr(1));
+			reverb = FreeVerb.ar(in: waveloss, mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
+			reverb;
+		};
+		(this.name++": WaveLoss").postln;
 		}
 
 	/*
@@ -650,6 +694,10 @@ Sway : Singleton {
 		texturalposrate.fadeTime = time;
 		texturalpostype.fadeTime = time;
 		//texturalrate.fadeTime = time;
+		//waveloss
+		wldrop.fadeTime = time;
+		wloutof.fadeTime = time;
+		wlmode.fadeTime = time;
 	}
 
 	choose_new_processing {|qrant|
@@ -703,6 +751,7 @@ Sway : Singleton {
 		all_processing.put(\cascade, {this.cascade});
 		all_processing.put(\filter, {this.filter});
 		all_processing.put(\freeze, {this.freeze});
+		all_processing.put(\waveloss, {this.waveloss});
 		//make all processing currently available
 		available_processing = Dictionary.new;
 		available_processing.put(\silence, {this.silence});
@@ -715,6 +764,7 @@ Sway : Singleton {
 		available_processing.put(\cascade, {this.cascade});
 		available_processing.put(\filter, {this.filter});
 		available_processing.put(\freeze, {this.freeze});
+		available_processing.put(\waveloss, {this.waveloss});
 		this.assign_quadrant(xy[0], xy[1]);
 		this.map_quadrants(quadrant_names);
 		polarity=false;
@@ -763,6 +813,9 @@ Sway : Singleton {
 		texturalposrate.free(1);
 		texturalpostype.free(1);
 		texturalrate.free(1);
+		wldrop.free(1);
+		wloutof.free(1);
+		wlmode.free(1);
 		analysis_loop.stop;
 		this.clear;
 		//Server.freeAll;

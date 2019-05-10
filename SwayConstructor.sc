@@ -1,6 +1,6 @@
 SwayConstructor : Singleton {
 
-	var <>gui, <>counter=0, <>wait_time=1.0, <>quadrant, <>global, <>amp, <>channel, <>global_loop, <>mixer_bus, <>monitor, <>solo_done=false;
+	var <>gui, <>counter=0, <>wait_time=1.0, <>quadrant, <>global, <>amp, <>channel, <>global_loop, <>mixer_bus, <>monitor, <>solo_done=false, <>video_loop, <>hydra, <>blends, <>aggregatexy, <>averagexy, <>aggregateamp, <>aggregateclarity, <>aggregatedensity;
 
 	init {
 		//build structures for global changes
@@ -26,7 +26,6 @@ SwayConstructor : Singleton {
 			wait_time.wait;
 			counter = counter + wait_time;
 		}}).play;
-
 	}
 
 	set {
@@ -135,6 +134,7 @@ SwayConstructor : Singleton {
 			old_processing.put(key, val.quadrant_names);//capture current processing type
 			val.input.source = { |chan| SoundIn.ar(newchan) };//change all instances to same processing input
 			val.all_processing.choose.value;//choose new type of processing for each channel
+			val.analysis_input.source { |chan| SoundIn.ar(newchan) };//change all instances to same analysis input
 			(val.name++": Global Event Solo Beginning").postln;
 			limit = val.timelimit;
 		});
@@ -142,6 +142,7 @@ SwayConstructor : Singleton {
 		Sway.all.keysValuesDo({|key,val|
 			(val.name++": Global Event Solo Ending").postln;
 			val.input.source = { |chan| SoundIn.ar(old_input.at(key)) };//reapply the current inputs
+			val.analysis_input.source = { |chan| SoundIn.ar(old_input.at(key)) };//reapply the current inputs for analysis
 			val.map_quadrants(old_processing.at(key));//map based on the old processing
 			val.global_change=false;
 			val.quadrant_flag=true;
@@ -234,7 +235,7 @@ SwayConstructor : Singleton {
 
 	reset_all {
 		Sway.all.keysValuesDo({|key, value|
-			value.name++": resetting".postln;
+			(value.name++": resetting").postln;
 			value.reset;
 		});
 		solo_done=false;
@@ -257,6 +258,78 @@ SwayConstructor : Singleton {
 		}{
 			Maybe(nil);
 		};
+	}
+
+	video_start { |hydra_host="127.0.0.1"|
+		var amp, clarity, density, calcBlend;
+		calcBlend = {|x2,y2,x1,y1|
+			//calculate distance of coordinate which is the blend for the video module
+			var value = (0.73-((((x2-x1)**2) + ((y2-y1)**2)).sqrt)).clip(0.0,1.0);
+			value;
+		};
+		//video module control using Hydra https://github.com/ojack/atom-hydra
+		hydra = NetAddr.new(hydra_host, 57101);
+			aggregatexy = Dictionary.new;
+		    aggregateamp = Dictionary.new;
+		    aggregateclarity = Dictionary.new;
+		    aggregatedensity = Dictionary.new;
+			averagexy = [0.5,0.5];
+			blends = Array.newClear(4);
+		    //initialize data structures
+		    Sway.all.keysValuesDo({|key,val|
+			aggregatexy.put(key,val.xy);
+			aggregateamp.put(key, val.amplitude.bus.subBus(1).getSynchronous.linlin(0,30,0,1));
+			aggregateclarity.put(key, val.clarity.bus.subBus(1).getSynchronous);
+			aggregatedensity.put(key, val.onsets.bus.subBus(1).getSynchronous.linlin(0,6,0,1));
+		});
+			video_loop = TaskProxy.new({ loop {
+			//get all xy values
+				Sway.all.keysValuesDo({|key,val|
+					//check if above amp threshold
+					if(val.above_amp_thresh==true, {
+						//get the xy coordinates and add to dictionary
+						aggregatexy.put(key, val.xy);
+					    //get the analysis values
+					aggregateamp.put(key, val.amplitude.bus.getSynchronous.linlin(0,30,0,1));
+					aggregateclarity.put(key, val.clarity.bus.getSynchronous);
+				    aggregatedensity.put(key, val.onsets.bus.getSynchronous.linlin(0,6,0,1));
+				},{
+					    //if input is below threshold, remove their influence from audio parameters but not XY blend
+					    //aggregatexy.removeAt(key);
+					    aggregateamp.removeAt(key);
+					    aggregateclarity.removeAt(key);
+					    aggregatedensity.removeAt(key);
+				});
+				});
+				//process them
+				//find the averaged point
+				//average xy
+				averagexy = aggregatexy.sum/aggregatexy.size;
+			    //[aggregatexy.sum,aggregatexy.size,averagexy].postln;
+				//find the distance from each corner, 1-that is the blend
+				//1-((((X2-X1)**2) + ((Y2-Y1)**2)).sqrt) this works
+				//blend levels
+				//1[1,1], 2[0,1], 3[0,0], 4[1,0]
+				blends[0] = calcBlend.(averagexy[0],averagexy[1],1,1);
+				blends[1] = calcBlend.(averagexy[0],averagexy[1],0,1);
+				blends[2] = calcBlend.(averagexy[0],averagexy[1],0,0);
+				blends[3] = calcBlend.(averagexy[0],averagexy[1],1,0);
+			if(aggregateamp.size>0,{
+				amp = aggregateamp.sum/aggregateamp.size;
+				clarity = aggregateclarity.sum/aggregateclarity.size;
+				density = aggregatedensity.sum/aggregatedensity.size;
+			},{});
+				//send everything via OSC
+				("blends: "++[blends[0],blends[1],blends[2],blends[3], amp, clarity, density]).postln;
+				hydra.sendMsg('/control', blends[0],blends[1],blends[2],blends[3],amp,clarity,density);
+				//hydra.sendMsg('/fadeout');
+				//wait so you don't crash
+				0.04.wait;
+			}}).play;
+	}
+
+	video_stop {
+		video_loop.stop;
 	}
 
 }
