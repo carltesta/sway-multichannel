@@ -1,6 +1,6 @@
 SwayConstructor : Singleton {
 
-	var <>gui, <>counter=0, <>wait_time=1.0, <>quadrant, <>global, <>amp, <>channel, <>global_loop, <>mixer_bus, <>monitor, <>solo_done=false, <>video_loop, <>hydra, <>blends, <>aggregatexy, <>averagexy, <>aggregateamp, <>aggregateclarity, <>aggregatedensity;
+	var <>gui, <>counter=0, <>wait_time=1.0, <>quadrant, <>global, <>amp, <>channel, <>global_loop, <>mixer_bus, <>monitor, <>solo_done=false, <>video_loop, <>hydra, <>blends, <>aggregatexy, <>averagexy, <>aggregateamp, <>aggregateclarity, <>aggregatedensity, <>video_verbose=false;
 
 	init {
 		//build structures for global changes
@@ -243,6 +243,7 @@ SwayConstructor : Singleton {
 
 	end_all {
 		Sway.all.keysValuesDo({|key, value|
+			(value.name++": ending").postln;
 			value.end;
 		});
 	}
@@ -286,16 +287,16 @@ SwayConstructor : Singleton {
 			//get all xy values
 				Sway.all.keysValuesDo({|key,val|
 					//check if above amp threshold
-					if(val.above_amp_thresh==true, {
+					if(val.quadrant!=0, {
 						//get the xy coordinates and add to dictionary
 						aggregatexy.put(key, val.xy);
-					    //get the analysis values
-					aggregateamp.put(key, val.amplitude.bus.getSynchronous.linlin(0,30,0,1));
-					aggregateclarity.put(key, val.clarity.bus.getSynchronous);
-				    aggregatedensity.put(key, val.onsets.bus.getSynchronous.linlin(0,6,0,1));
+					//get the analysis values (30 second averaged values)
+					aggregateamp.put(key, val.amplitude.bus.subBus(1).getSynchronous.linlin(0,30,0,1));
+					aggregateclarity.put(key, val.clarity.bus.subBus(1).getSynchronous);
+				    aggregatedensity.put(key, val.onsets.bus.subBus(1).getSynchronous.linlin(0,6,0,1));
 				},{
-					    //if input is below threshold, remove their influence from audio parameters but not XY blend
-					    //aggregatexy.removeAt(key);
+					    //if input is in quadrant 0 then remove their influence from parameters
+					    aggregatexy.removeAt(key);
 					    aggregateamp.removeAt(key);
 					    aggregateclarity.removeAt(key);
 					    aggregatedensity.removeAt(key);
@@ -320,7 +321,7 @@ SwayConstructor : Singleton {
 				density = aggregatedensity.sum/aggregatedensity.size;
 			},{});
 				//send everything via OSC
-				("blends: "++[blends[0],blends[1],blends[2],blends[3], amp, clarity, density]).postln;
+			if(video_verbose==true,{("blends: "++[blends[0],blends[1],blends[2],blends[3], amp, clarity, density]).postln;},{});
 				hydra.sendMsg('/control', blends[0],blends[1],blends[2],blends[3],amp,clarity,density);
 				//hydra.sendMsg('/fadeout');
 				//wait so you don't crash

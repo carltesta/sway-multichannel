@@ -113,6 +113,7 @@ SwayGUI : Singleton {
 			.string_(("c"++name));
 		});
 
+		/*
 		//step
 		step_slider = Slider(main, Rect(0,0,25,100))//step
 			.step_(0.001)
@@ -124,7 +125,7 @@ SwayGUI : Singleton {
 
 		//gravity
 		grav_slider = Slider(main, Rect(0,0,25,100))//gravity
-			.step_(0.001)
+			.step_(0.0001)
 		    .value_(Sway.gravity)
 			.action_({|val|
 				Sway.gravity=val.value;
@@ -133,13 +134,14 @@ SwayGUI : Singleton {
 
 		//refresh
 		refresh_slider = Slider(main, Rect(0,0,25,100))//refreshRate
-			.step_(0.01)
+			.step_(0.001)
 		    .value_(Sway.refresh_rate/2)
 			.action_({|val|
-				Sway.refresh_rate=val.value*2+0.1;
-			("refresh rate: "++(val.value*2+0.1)).postln;
+				Sway.refresh_rate=val.value*2+0.01;
+			("refresh rate: "++(val.value*2+0.01)).postln;
 			});
 
+		*/
 		//mixer level slider (MAIN VOLUME)
 		mixer_slider = Slider(main, Rect(0,0,25,100))//mixerLevel
 			.step_(0.01)
@@ -167,6 +169,20 @@ SwayGUI : Singleton {
 				but.postln;
 			});
 		});
+		//empty space
+		View(testview, Rect(0,0,100,50));
+
+		//video verbose
+		Button(testview, Rect(0,0,100,50))
+			.states_([
+				[("verbose off"), Color.black, Color.gray],
+				[("verbose on"), Color.black, Color.green]
+			])
+			.action_({|but|
+			if(but.value==1, {SwayConstructor(\sway).video_verbose=true;},{SwayConstructor(\sway).video_verbose=false;});
+				but.postln;
+			});
+
 		testview.startRow;
 
 		//turn analysis on and off for each channel
@@ -189,6 +205,17 @@ SwayGUI : Singleton {
 		.action_({|but|
 			SwayConstructor(\sway).reset_all;
 		});
+
+		//Turn video send on and off
+			Button(testview, Rect(0,0,100,50))
+			.states_([
+				[("video off"), Color.black, Color.gray],
+				[("video on"), Color.black, Color.green]
+			])
+			.action_({|but|
+			if(but.value==1, {SwayConstructor(\sway).video_start;},{SwayConstructor(\sway).video_stop;});
+				but.postln;
+			});
 
 		testview.startRow;
 			//change processing type for all channels to test levels

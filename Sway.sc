@@ -139,7 +139,7 @@ Sway : Singleton {
 				},{});
 		//Tracker processing grid changer is implemented here
 			if (tracker_on==true, {
-			if( tracker.any({|i,n|i>timelimit}), {//if any item in tracker is above timelimit
+					if( tracker.any({|i,n|i>(timelimit*16)}), {//if any item in tracker is above timelimit
 					//then choose new processing for that quadrant
 					this.choose_new_processing(tracker.detectIndex({|i|i>timelimit}));
 					(this.name++": processing grid changing").postln;
@@ -408,7 +408,7 @@ Sway : Singleton {
 			preverb = FreeVerb.ar(in: input.ar(1), mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
 			waveloss = WaveLoss.ar(preverb, wldrop.kr(1), wloutof.kr(1), wlmode.kr(1));
 			reverb = FreeVerb.ar(in: waveloss, mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
-			reverb;
+			reverb*1.5;
 		};
 		(this.name++": WaveLoss").postln;
 		}
