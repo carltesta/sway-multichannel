@@ -107,7 +107,7 @@ SwayConstructor : Singleton {
 			quadrant.put(key, val.quadrant[0]);
 			});
 		case
-		{quadrant.every({|item|item==2})}{this.decouple_all}
+		{quadrant.every({|item|item==2})}{this.waveloss_all}
 		{quadrant.every({|item|item==1})}{this.delay_all}
 		{quadrant.every({|item|item==3})}{this.texture_all}
 		{quadrant.every({|item|item==4})}{this.cascade_all}
@@ -233,6 +233,26 @@ SwayConstructor : Singleton {
 		});
 	}
 
+	waveloss_all {
+		var old = Dictionary.new;
+		var limit;
+		Sway.all.keysValuesDo({|key,val|
+			val.analysis_on=false;
+			old.put(key, val.quadrant_names);
+			val.waveloss;
+			(val.name++": Global Waveloss Beginning").postln;
+			limit = val.timelimit;
+		});
+		limit.wait;
+		Sway.all.keysValuesDo({|key,val|
+			(val.name++": Global Waveloss Complete").postln;
+			val.map_quadrants(old.at(key));
+			val.analysis_on=true;
+			val.global_change=false;
+			val.quadrant_flag=true;
+		});
+	}
+
 	reset_all {
 		Sway.all.keysValuesDo({|key, value|
 			(value.name++": resetting").postln;
@@ -261,7 +281,7 @@ SwayConstructor : Singleton {
 		};
 	}
 
-	video_start { |hydra_host="127.0.0.1"|
+	video_start { |hydra_host="10.0.1.3"|
 		var amp, clarity, density, calcBlend;
 		calcBlend = {|x2,y2,x1,y1|
 			//calculate distance of coordinate which is the blend for the video module

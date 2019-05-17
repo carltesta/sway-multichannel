@@ -4,7 +4,7 @@ Sway : Singleton {
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=0.0625, <>gravity=0.002, <>step=0.002;
 
 	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=15, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
-<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false;
+<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=240, <>available_processing, <>all_processing, <>global_change=false;
 
     init {
 		//Setup initial parameters
