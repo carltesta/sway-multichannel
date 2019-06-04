@@ -42,7 +42,7 @@ Sway : Singleton {
 		fftbuffer = Buffer.alloc(Server.default, 1024);
 
 		//delaybuffer
-		delaybuffer = Buffer.alloc(Server.default, 12*44100, 1);
+		delaybuffer = Buffer.allocConsecutive(2, Server.default, 12*44100, 1);
 
 		//audio recorder
 		buffer = Buffer.alloc(Server.default, long_win*44100, 1);
@@ -472,8 +472,8 @@ Sway : Singleton {
 			var sourcevol = delaysourcevol.kr(1);
 			var local = LocalIn.ar(1) + (input.ar(1)*sourcevol);
 			var select = ToggleFF.kr(\toggle.tr(1.neg));
-			var delay1 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, 1- select));
-			var delay2 = BufDelayL.ar(delaybuffer, local, Latch.kr(time, select));
+			var delay1 = BufDelayL.ar(delaybuffer[0], local, Latch.kr(time, 1- select));
+			var delay2 = BufDelayL.ar(delaybuffer[1], local, Latch.kr(time, select));
 			var fade = MulAdd.new(Lag2.kr(select, 4), 2, 1.neg);
 			var delay = XFade2.ar(delay1, delay2, fade);
 			LocalOut.ar(delay * feedback);
@@ -778,7 +778,7 @@ Sway : Singleton {
 		analysis_input.free(1);
 		buffer.free;
 		fftbuffer.free;
-		delaybuffer.free;
+		delaybuffer.do(_.free);
 		recorder.free(1);
 		processing.free(1);
 		onsets.free(1);
