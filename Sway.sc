@@ -3,8 +3,8 @@ Sway : Singleton {
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=0.0625, <>gravity=0.002, <>step=0.002;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=15, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
-<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=240, <>available_processing, <>all_processing, <>global_change=false;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=45, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
+<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false, <>quadrant_change=true;
 
     init {
 		//Setup initial parameters
@@ -129,6 +129,7 @@ Sway : Singleton {
 					//("drift to center: "++xy).postln;
 				});
 			});
+		if (quadrant_change==true, {
 		this.assign_quadrant(xy[0], xy[1]);
 		//Checks to see if quadrant has changed, if so, it changes type of processing
 		if (quadrant[0] == quadrant[1], {
@@ -140,6 +141,10 @@ Sway : Singleton {
 		//Tracker processing grid changer is implemented here
 			if (tracker_on==true, {
 					if( tracker.any({|i,n|i>(timelimit*16)}), {//if any item in tracker is above timelimit
+					//then choose new fadetime
+					if(fade>30, {fade=2+(38.0.rand)},{fade=25+(35.0.rand)});
+					this.fade_time(fade);
+					(this.name++": fade time is now = "++fade).postln;
 					//then choose new processing for that quadrant
 					this.choose_new_processing(tracker.detectIndex({|i|i>timelimit}));
 					(this.name++": processing grid changing").postln;
@@ -157,6 +162,7 @@ Sway : Singleton {
 					});
 				},{});
 				});
+			});
 			});
 		refresh_rate.wait;
 		count=count+1;
@@ -258,7 +264,7 @@ Sway : Singleton {
 		//amplitude modulation
 		amfreq.source = { amplitude.kr(1,0).linlin(0,30,1,14)};
 		//reverb
-		rvmix.source = { onsets.kr(1,0).linlin(0,6,0.3,1) };
+		rvmix.source = { onsets.kr(1,0).linlin(0,6,0.5,1) };
 		rvsize.source = { amplitude.kr(1,1).linlin(0,30,0.3,1) };
 		rvdamp.source = { clarity.kr(1,0).linlin(0,1,1,0) };
 		//delay
@@ -310,7 +316,7 @@ Sway : Singleton {
 		amfreq.source = { amplitude.kr(1,0).linlin(0,30,14,1)};
 		//reverb
 
-		rvmix.source = { onsets.kr(1,0).linlin(0,6,0.8,0.5) };
+		rvmix.source = { onsets.kr(1,0).linlin(0,6,1.0,0.5) };
 		rvsize.source = { amplitude.kr(1,1).linlin(0,30,0.9,0.7) };
 		rvdamp.source = { clarity.kr(1,0).linlin(0,1,0.2,1) };
 
@@ -456,7 +462,7 @@ Sway : Singleton {
 			\trigger, 1,
 			\buf1, fftbuffer.bufnum,
 			\legato,Pkey(\dur)*Pfunc({freezeleg.bus.getSynchronous}),
-			\amp, Pwhite(0.6,0.8),
+			\amp, Pwhite(0.4,0.6),
 			);
 		(this.name++": Freeze Pattern").postln;
 	}
@@ -620,12 +626,11 @@ Sway : Singleton {
 	assign_quadrant { |x, y|
 		quadrant = quadrant.shift(1);
 		case
-		    {(x<0.45) && (y<0.45)} {quadrant.put(0,3);tracker[3]=tracker[3]+1}//quadrant 3
-		    {(x>0.55) && (y<0.45)} {quadrant.put(0,4);tracker[4]=tracker[4]+1}//quadrant 4
-		    {(x<0.45) && (y>0.55)} {quadrant.put(0,2);tracker[2]=tracker[2]+1}//quadrant 2
-		    {(x>0.55) && (y>0.55)} {quadrant.put(0,1);tracker[1]=tracker[1]+1}//quadrant 1
-		{(x<0.55) && (x>0.45) && (y<0.55) && (y>0.45)} {quadrant.put(0,0);tracker[0]=tracker[0]+1};//quadrant 0
-		//quadrant.postln;
+		    {(x<=0.55) && (x>=0.45) && (y<=0.55) && (y>=0.45)} {quadrant.put(0,0);tracker[0]=tracker[0]+1}//quadrant 0
+		    {(x<=0.49) && (y<=0.49)} {quadrant.put(0,3);tracker[3]=tracker[3]+1}//quadrant 3
+		    {(x>=0.51) && (y<=0.49)} {quadrant.put(0,4);tracker[4]=tracker[4]+1}//quadrant 4
+		    {(x<=0.49) && (y>=0.51)} {quadrant.put(0,2);tracker[2]=tracker[2]+1}//quadrant 2
+		    {(x>=0.55) && (y>=0.51)} {quadrant.put(0,1);tracker[1]=tracker[1]+1};//quadrant 1
 	}
 
 	//map different types of processing to the quadrants using the quadrant names
@@ -738,7 +743,7 @@ Sway : Singleton {
 		quadrant_names.put(0,\silence);
 		quadrant_names.put(1,\delay);
 		quadrant_names.put(2,\textural);
-		quadrant_names.put(3,\reverb);
+		quadrant_names.put(3,\waveloss);
 		quadrant_names.put(4,\ampmod);
 		all_processing = Dictionary.new;
 		all_processing.put(\silence, {this.silence});
@@ -767,6 +772,8 @@ Sway : Singleton {
 		available_processing.put(\waveloss, {this.waveloss});
 		this.assign_quadrant(xy[0], xy[1]);
 		this.map_quadrants(quadrant_names);
+		//this next line randomizies the quadrant space on startup
+		5.do({|n|this.choose_new_processing(n)});
 		polarity=false;
 		global_change=false;
 		//quadrant_flag=true;

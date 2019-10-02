@@ -10,6 +10,7 @@ SwayConstructor : Singleton {
 		channel = Dictionary.new;
 		//start global loop here
 		global_loop = TaskProxy.new({ loop {
+			if(Sway.all.size>1, {
 			Sway.all.keysValuesDo({|key,val|
 				global.put(key, val.global_change);
 			});
@@ -22,6 +23,7 @@ SwayConstructor : Singleton {
 			wait_time.wait;
 			this.check_all_quadrant;
 			wait_time.wait;
+			},{});
 			},{});
 			wait_time.wait;
 			counter = counter + wait_time;
@@ -57,6 +59,8 @@ SwayConstructor : Singleton {
 				var in = In.ar(mixer_bus.index, num);
 				var splay = Splay.ar(in, 1, level);
 				splay;
+				//var mix = Mix.ar(in*level);
+				//mix!2;
 			};
 		}).play(AppClock);
 	}
@@ -125,14 +129,18 @@ SwayConstructor : Singleton {
 	}
 
 	solo { |newchan|
+		var old_fade = Dictionary.new;
 		var old_input = Dictionary.new;
 		var old_processing = Dictionary.new;
 		var limit;
 		Sway.all.keysValuesDo({|key,val|
-			val.analysis_on=false;//turn off analysis to prevent movement around grid
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
+			//val.analysis_on=false;//turn off analysis to prevent movement around grid
+			old_fade.put(key, val.fade);//capture current fadetime
 			old_input.put(key, val.input.get(\chan));//capture original input assignment
 			old_processing.put(key, val.quadrant_names);//capture current processing type
 			val.input.source = { |chan| SoundIn.ar(newchan) };//change all instances to same processing input
+			val.fade_time(5);//change fadetime to sometime quick
 			val.all_processing.choose.value;//choose new type of processing for each channel
 			val.analysis_input.source { |chan| SoundIn.ar(newchan) };//change all instances to same analysis input
 			(val.name++": Global Event Solo Beginning").postln;
@@ -143,10 +151,12 @@ SwayConstructor : Singleton {
 			(val.name++": Global Event Solo Ending").postln;
 			val.input.source = { |chan| SoundIn.ar(old_input.at(key)) };//reapply the current inputs
 			val.analysis_input.source = { |chan| SoundIn.ar(old_input.at(key)) };//reapply the current inputs for analysis
+			val.fade_time(old_fade.at(key));//reapply old fadetime
 			val.map_quadrants(old_processing.at(key));//map based on the old processing
 			val.global_change=false;
 			val.quadrant_flag=true;
-			val.analysis_on=true;
+			//val.analysis_on=true;
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
 		});
 		solo_done=true;
 	}
@@ -157,6 +167,7 @@ SwayConstructor : Singleton {
 		var limit;
 		Sway.all.keysValuesDo({|key,val,n|
 			//val.analysis_on=false;
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
 			old.put(key, val.analysis_input.get(\chan));
 			val.analysis_input.set(\chan, scramble[n]);
 			(val.name++": Global Analysis Decoupling Beginning").postln;
@@ -167,6 +178,7 @@ SwayConstructor : Singleton {
 		Sway.all.keysValuesDo({|key,val,n|
 			(val.name++": Global Analysis Decoupling Ending").postln;
 			val.analysis_input.set(\chan, old.at(key));
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
 			//val.analysis_on=true;
 			val.global_change=false;
 			val.quadrant_flag=true;
@@ -174,10 +186,14 @@ SwayConstructor : Singleton {
 	}
 
 	delay_all {
+		var old_fade = Dictionary.new;
 		var old = Dictionary.new;
 		var limit;
 		Sway.all.keysValuesDo({|key,val|
-			val.analysis_on=false;
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
+			//val.analysis_on=false;
+			old_fade.put(key, val.fade);//capture old fadetime
+			val.fade_time(5);//change fadetime
 			old.put(key, val.quadrant_names);
 			val.delay;
 			(val.name++": Global Delay Beginning").postln;
@@ -186,18 +202,24 @@ SwayConstructor : Singleton {
 		limit.wait;
 		Sway.all.keysValuesDo({|key,val|
 			(val.name++": Global Delay Complete").postln;
+			val.fade_time(old_fade.at(key));//reapply old fade
 			val.map_quadrants(old.at(key));
-			val.analysis_on=true;
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
+			//val.analysis_on=true;
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
 	}
 
 	texture_all {
+		var old_fade = Dictionary.new;
 		var old = Dictionary.new;
 		var limit;
 		Sway.all.keysValuesDo({|key,val|
-			val.analysis_on=false;
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
+			//val.analysis_on=false;
+			old_fade.put(key, val.fade);//capture old fadetime
+			val.fade_time(5);//change fadetime
 			old.put(key, val.quadrant_names);
 			val.textural;
 			(val.name++": Global Texture Landscape Beginning").postln;
@@ -206,18 +228,24 @@ SwayConstructor : Singleton {
 		limit.wait;
 		Sway.all.keysValuesDo({|key,val|
 			(val.name++": Global Texture Landscape Complete").postln;
+			val.fade_time(old_fade.at(key));//reapply old fade
 			val.map_quadrants(old.at(key));
-			val.analysis_on=true;
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
+			//val.analysis_on=true;
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
 	}
 
 	cascade_all {
+		var old_fade = Dictionary.new;
 		var old = Dictionary.new;
 		var limit;
 		Sway.all.keysValuesDo({|key,val|
-			val.analysis_on=false;
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
+			//val.analysis_on=false;
+			old_fade.put(key, val.fade);//capture old fadetime
+			val.fade_time(5);//change fadetime
 			old.put(key, val.quadrant_names);
 			val.cascade;
 			(val.name++": Global Cascade Beginning").postln;
@@ -226,18 +254,24 @@ SwayConstructor : Singleton {
 		limit.wait;
 		Sway.all.keysValuesDo({|key,val|
 			(val.name++": Global Cascade Complete").postln;
+			val.fade_time(old_fade.at(key));//reapply old fade
 			val.map_quadrants(old.at(key));
-			val.analysis_on=true;
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
+			//val.analysis_on=true;
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
 	}
 
 	waveloss_all {
+		var old_fade = Dictionary.new;
 		var old = Dictionary.new;
 		var limit;
 		Sway.all.keysValuesDo({|key,val|
-			val.analysis_on=false;
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
+			//val.analysis_on=false;
+			old_fade.put(key, val.fade);//capture old fadetime
+			val.fade_time(5);//change fadetime
 			old.put(key, val.quadrant_names);
 			val.waveloss;
 			(val.name++": Global Waveloss Beginning").postln;
@@ -246,8 +280,10 @@ SwayConstructor : Singleton {
 		limit.wait;
 		Sway.all.keysValuesDo({|key,val|
 			(val.name++": Global Waveloss Complete").postln;
+			val.fade_time(old_fade.at(key));//reapply old fade
 			val.map_quadrants(old.at(key));
-			val.analysis_on=true;
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
+			//val.analysis_on=true;
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
@@ -281,7 +317,7 @@ SwayConstructor : Singleton {
 		};
 	}
 
-	video_start { |hydra_host="10.0.1.3"|
+	video_start { |hydra_host="192.168.159.245"|
 		var amp, clarity, density, calcBlend;
 		calcBlend = {|x2,y2,x1,y1|
 			//calculate distance of coordinate which is the blend for the video module
@@ -307,7 +343,7 @@ SwayConstructor : Singleton {
 			//get all xy values
 				Sway.all.keysValuesDo({|key,val|
 					//check if above amp threshold
-					if(val.quadrant!=0, {
+				if(val.quadrant!=0, {
 						//get the xy coordinates and add to dictionary
 						aggregatexy.put(key, val.xy);
 					//get the analysis values (30 second averaged values)
