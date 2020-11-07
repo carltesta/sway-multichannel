@@ -1,6 +1,7 @@
 Sway : Singleton {
 	//Carl Testa 2018
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
+	//original defaults pre-video were <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05, default rates
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=0.0625, <>gravity=0.002, <>step=0.002;
 
 	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=45, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
@@ -60,8 +61,8 @@ Sway : Singleton {
 		.source = { Silent.ar(1) };
 
 		//audio output to listen and change channel
-		output = NodeProxy.audio(Server.default, 1)
-		.source = { processing.ar(1) };
+		output = NodeProxy.audio(Server.default, 2)
+		.source = { |volume=1| Pan2.ar(processing.ar(1), 0, volume) };
 
 		//analysis input so there is option to decouple processed audio from analysed audio
 		analysis_input = NodeProxy.audio(Server.default, 1)
@@ -82,7 +83,7 @@ Sway : Singleton {
 			//if verbose is on report values
 			if(verbose==true,{
 			flatness.bus.get({|val|
-				(this.name++" flatness: "++val[1]).postln;
+				//(this.name++" flatness: "++val[1]).postln;
 					});
 			onsets.bus.get({|val|
 				(this.name++" onsets: "++val[1]).postln;
@@ -90,7 +91,9 @@ Sway : Singleton {
 			clarity.bus.get({|val|
 				(this.name++" clarity: "++val[1]).postln;
 					});
+					"----------------------------------".postln;
 				});
+
 			//if signal is above amplitude threshold do analysis
 			amplitude.bus.get({|val|
 				if(verbose==true,{(this.name++" amp: "++val[1]).postln});
@@ -732,7 +735,7 @@ Sway : Singleton {
 		//TO DO: the number of data structures I have to keep track of the quadrants and the names of the processing and all the available processing etc feels very clunky. There must be a better way to manage all this information.
 		//Experimenting with Dictionary for Threshold Data structure
 		thresholds = Dictionary.new;
-		thresholds.putPairs([\amp, 4, \clarity, 0.6, \density, 1.5]);
+		thresholds.putPairs([\amp, 4, \clarity, 0.6, \density, 1.5, \fadetime, 45]);
 		//If an old archive of thresholds doesn't exist, create it with the default values
 		if(Archive.global.at(("sway"++this.name++"thresholds").asSymbol).isNil, {
 			Archive.global.put(("sway"++this.name++"thresholds").asSymbol, thresholds);},{});
