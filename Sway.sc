@@ -4,8 +4,8 @@ Sway : Singleton {
 	//original defaults pre-video were <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05, default rates
 	classvar <>short_win=1, <>long_win=30, <>refresh_rate=0.5, <>gravity=0.01, <>step=0.05;
 
-	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=45, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
-<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false, <>quadrant_change=true;
+	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=30, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
+<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=240, <>available_processing, <>all_processing, <>global_change=true, <>quadrant_change=true;
 
     init {
 		//Setup initial parameters
@@ -143,7 +143,7 @@ Sway : Singleton {
 				},{});
 		//Tracker processing grid changer is implemented here
 			if (tracker_on==true, {
-					if( tracker.any({|i,n|i>(timelimit*16)}), {//if any item in tracker is above timelimit
+					if( tracker.any({|i,n|i>(timelimit)}), {//if any item in tracker is above timelimit
 					//then choose new fadetime
 					if(fade>30, {fade=2+(38.0.rand)},{fade=25+(35.0.rand)});
 					this.fade_time(fade);
@@ -744,10 +744,10 @@ Sway : Singleton {
 		//change the initial mapping setup here:
 		quadrant_names = Array.newClear(5);
 		quadrant_names.put(0,\silence);
-		quadrant_names.put(1,\delay);
-		quadrant_names.put(2,\textural);
-		quadrant_names.put(3,\waveloss);
-		quadrant_names.put(4,\ampmod);
+		quadrant_names.put(1,\reverb); //delay
+		quadrant_names.put(2,\reverb); //textural
+		quadrant_names.put(3,\reverb); //waveloss
+		quadrant_names.put(4,\reverb); //ampmod
 		all_processing = Dictionary.new;
 		all_processing.put(\silence, {this.silence});
 		all_processing.put(\delay, {this.delay});
@@ -776,9 +776,9 @@ Sway : Singleton {
 		this.assign_quadrant(xy[0], xy[1]);
 		this.map_quadrants(quadrant_names);
 		//this next line randomizies the quadrant space on startup
-		5.do({|n|this.choose_new_processing(n)});
+		//5.do({|n|this.choose_new_processing(n)});
 		polarity=false;
-		global_change=false;
+		global_change=true; //false is default
 		//quadrant_flag=true;
 	}
 
