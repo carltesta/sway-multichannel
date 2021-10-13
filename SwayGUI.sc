@@ -330,6 +330,67 @@ SwayGUI : Singleton {
 			});
 		});
 
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["distort all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.distort;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["smear all", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.smear;
+			});
+		});
+
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["microtonal cloud", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.microtonalcloud;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["pools", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.pools;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["AM Cascade", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.amcascade;
+			});
+		});
+
+		Button(testview, Rect(0,0,100,50))
+		.states_([
+			["Variable Speed", Color.black, Color.white]
+		])
+		.action_({|but|
+			Sway.all.keysValuesDo({|name, instance, i|
+				instance.varspeed;
+			});
+		});
+
 		testwin.front;
 
 		//gui updater task

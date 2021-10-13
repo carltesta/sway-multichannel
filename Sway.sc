@@ -1,10 +1,14 @@
 Sway : Singleton {
-	//Carl Testa 2018
+	//Carl Testa 2018-2021
 	//Special Thanks to Brian Heim, Joshua Parmenter, Chris McDonald, Scott Carver
-	classvar <>short_win=1, <>long_win=30, <>refresh_rate=0.0625, <>gravity=0.002, <>step=0.002;
+	//some effects code based on SuperDirt effects distort and spectral smear
+	classvar <>short_win=1, <>long_win=30, <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
+	//non-video settings <>refresh_rate=1.0, <>gravity=0.01, <>step=0.05;
+	//hydra settings <>refresh_rate=0.0625, <>gravity=0.002, <>step=0.002;
 
 	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=45, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
-<>wldrop, <>wloutof, <>wlmode, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=200, <>available_processing, <>all_processing, <>global_change=false, <>quadrant_change=true;
+<>wldrop, <>wloutof, <>wlmode, <>dslevel, <>smlevel, <>timespread, <>pitchspread, <>plshimmer, <>plamp, <>plverb, <>vsspeed, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=270,//timelimit*16 for video
+<>available_processing, <>all_processing, <>global_change=false, <>quadrant_change=true;
 
     init {
 		//Setup initial parameters
@@ -140,7 +144,7 @@ Sway : Singleton {
 				},{});
 		//Tracker processing grid changer is implemented here
 			if (tracker_on==true, {
-					if( tracker.any({|i,n|i>(timelimit*16)}), {//if any item in tracker is above timelimit
+					if( tracker.any({|i,n|i>(timelimit)}), {//if any item in tracker is above timelimit
 					//then choose new fadetime
 					if(fade>30, {fade=2+(38.0.rand)},{fade=25+(35.0.rand)});
 					this.fade_time(fade);
@@ -255,7 +259,19 @@ Sway : Singleton {
 		wldrop = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		wloutof = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 		wlmode = NodeProxy.control(Server.default, 1).fadeTime_(fade);
-
+		//distortion
+		dslevel = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		//spectral smear
+		smlevel = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		//microtonal cloud
+		timespread = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		pitchspread = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		//pools reverb
+		plshimmer = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		plamp = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		plverb = NodeProxy.control(Server.default, 1).fadeTime_(fade);
+		//var speed
+		vsspeed = NodeProxy.control(Server.default, 1).fadeTime_(fade);
 	}
 
 	nonpolarity_map {
@@ -306,8 +322,19 @@ Sway : Singleton {
 		wldrop.source = { onsets.kr(1,0).linlin(0,6,1,35) };
 		wloutof.source = { onsets.kr(1,0).linlin(0,6,10,40) };
 		wlmode.source = { clarity.kr(1,0).linlin(0,1,2,1).round };
-
-
+		//distortion
+		dslevel.source = {onsets.kr(1,0).linlin(0,6,0,1) };
+		//spectral smear
+		smlevel.source = {amplitude.kr(1,0).linlin(0,10,1,64) };
+		//microtonal cloud
+		timespread.source = {onsets.kr(1,1).linlin(0,6,0.5,2) };
+		pitchspread.source = {clarity.kr(1,1).linlin(0,1,1,4) };
+		//pools reverb
+		plshimmer.source = {clarity.kr(1,1).linlin(0,1,0,1) };//uses long average
+		plamp.source = {amplitude.kr(1,0).linlin(0,10,0.1,0.5) };
+		plverb.source = {onsets.kr(1,1).linlin(0,6,0,1) };
+		//var speed
+		vsspeed.source = {onsets.kr(1,0).linlin(0,6,0.5,2.0) };
 	}
 
 	polarity_map {
@@ -315,7 +342,6 @@ Sway : Singleton {
 		//amplitude modulation
 		amfreq.source = { amplitude.kr(1,0).linlin(0,30,14,1)};
 		//reverb
-
 		rvmix.source = { onsets.kr(1,0).linlin(0,6,1.0,0.5) };
 		rvsize.source = { amplitude.kr(1,1).linlin(0,30,0.9,0.7) };
 		rvdamp.source = { clarity.kr(1,0).linlin(0,1,0.2,1) };
@@ -359,6 +385,19 @@ Sway : Singleton {
 		wldrop.source = { onsets.kr(1,0).linlin(0,6,35,1) };
 		wloutof.source = { onsets.kr(1,0).linlin(0,6,40,10) };
 		wlmode.source = { clarity.kr(1,0).linlin(0,1,1,2).round };
+		//distortion
+		dslevel.source = {onsets.kr(1,0).linlin(0,6,1,0) };
+		//spectral smear
+		smlevel.source = {amplitude.kr(1,0).linlin(0,10,64,1) };
+		//microtonal cloud
+		timespread.source = {onsets.kr(1,1).linlin(0,6,2,0.5) };
+		pitchspread.source = {clarity.kr(1,1).linlin(0,1,4,1) };
+		//pools reverb
+		plshimmer.source = {clarity.kr(1,1).linlin(0,1,1,0) };//uses long average
+		plamp.source = {amplitude.kr(1,0).linlin(0,10,0.5,0.1) };
+		plverb.source = {onsets.kr(1,1).linlin(0,6,1,0) };
+		//var speed
+		vsspeed.source = {onsets.kr(1,0).linlin(0,6,2.0,0.5) };
 	}
 
 	//TO DO: I'm wondering if I should completely separate out the processing from the analysis into a separate class. I wonder if it might make it easier in the future to create different results from the Sway analysis. Like Sway analysis controls audio processing or lighting or both. But if I put in audio processing in the main class then I won't have a chance to easily just have lighting control. Or perhaps I'd want only lighting for the first half of the show and then start the audio processing mid-way.
@@ -425,7 +464,7 @@ Sway : Singleton {
 		//control mapping:
 		//onsets -> freezefreq
 		//amplitude ->
-		processing.source = {
+	processing.source = {
 			//First use gate on input
 			var off = Lag2.kr(A2K.kr(DetectSilence.ar(input.ar(1),0.05),0.3));
             var on = 1-off;
@@ -611,6 +650,115 @@ Sway : Singleton {
 		};
 		(this.name++": Cascade").postln;
 	}
+
+	//Change processing to dirt_distort
+	distort {
+		//control mapping:
+		//onsets -> distortion level
+		processing.source = {
+			var signal, mod, distort;
+			signal = input.ar(1);
+			distort = dslevel.kr(1);
+			mod = CrossoverDistortion.ar(signal, amp: 0.2, smooth: 0.01);
+			mod = mod + (0.1 * distort * DynKlank.ar(`[[60,61,240,3000 + SinOsc.ar(62,mul: 100)],nil,[0.1, 0.1, 0.05, 0.01]], signal));
+			mod = (mod.cubed * 8).softclip * 0.5;
+			mod = SelectX.ar(distort, [signal, mod]);
+			mod;
+			//reverb = FreeVerb.ar(in: mod, mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
+			//reverb;
+		};
+		(this.name++": Distortion+Reverb").postln;
+	}
+
+	//Change processing to dirt_spectral_smear
+	smear {
+		//control mapping:
+		//amplitude -> smear amount
+		processing.source = {
+			var signal, smear, chain;
+			signal = input.ar(1);
+			smear = smlevel.kr(1);
+			chain = signal.asArray.collect { |x| FFT(LocalBuf(2048), x) };
+			signal = IFFT(PV_MagSmear(chain, bins: smear));
+			signal;
+			//reverb = FreeVerb.ar(in: mod, mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
+			//reverb;
+		};
+		(this.name++": Smear+Reverb").postln;
+}
+
+	//Change processing to microtonal cloud
+	microtonalcloud {
+		//control mapping:
+		//onsets -> timearray
+		//clarity -> pitcharray
+		processing.source = {
+			var timearray, pitcharray, signal, delay, pitchshift;
+			timearray = [0.1,0.5,1,2]*timespread.kr(1);
+			pitcharray = [0.98,0.99,1.01,1.02]*pitchspread.kr(1);
+			signal = input.ar(1);
+			delay = CombN.ar(signal, 10, timearray, 1.5);
+			pitchshift = PitchShift.ar(delay, 0.2, pitcharray);
+			Mix.ar(pitchshift);
+		};
+		(this.name++": Microtonal Cloud").postln;
+}
+
+	pools {
+		//control mapping:
+	    //clarity -> amount of shimmer
+	    //onsets -> reverb level
+	    //amplitude -> dry level (never full dry)
+		processing.source = {
+
+            var dry, wet, shifted, local, mix;
+
+		    dry = input.ar(1);
+            dry = DFM1.ar(dry, 20000.0, 0.1, 1.0, 0.0, 0.0003).softclip;
+
+            local = LocalIn.ar(1);
+
+            wet = JPverb.ar(dry + local, 5.0, 0.13, 1.5, 0.7, 1.0, 0.1, 1.0, 1.0, 1.0, 6000, 1000);
+            shifted = PitchShift.ar(wet, 0.5, 2.0, 0.13, 0.12);
+
+			LocalOut.ar(shifted * plshimmer.kr(1));
+            wet = LeakDC.ar(wet);
+			mix = Mix.ar([dry * plamp.kr(1), wet * plverb.kr(1)]);
+			Mix.ar(mix);
+
+		};
+		(this.name++": Pools").postln;
+		}
+
+	//change processing to amp mod cascade
+	amcascade {
+		processing.source = {
+			//pitch ->
+			//amp -> ampmod rate
+			//onsets ->
+			var sound = PlayBuf.ar(1, buffer.bufnum, 1, 0, {buffer.numFrames.rand}!16, 1);
+			var env = SinOsc.kr(1/16, (0..15).linlin(0,15,8pi.neg,8pi), 0.2);
+			var mix = Limiter.ar(Mix.new(sound*env), 1);
+			var tri = LFTri.ar(amfreq.kr(1), 0).unipolar;
+		 	var am = mix*tri;
+			am;
+		};
+		(this.name++": AmpMod Cascade").postln;
+	}
+
+	//change processing to halfspeed
+	varspeed {
+		processing.source = {
+			//TO DO:
+			//pitch ->
+			//amp ->
+			//onsets -> speed of playback
+			var sound = PlayBuf.ar(1, buffer.bufnum, vsspeed.kr(1), 0, {buffer.numFrames.rand}, 1);
+			sound;
+		};
+		(this.name++": Variable Speed Playback").postln;
+	}
+
 	//Silence processing
 	silence {
 		processing.source = { Silent.ar(1) };
@@ -626,11 +774,12 @@ Sway : Singleton {
 	assign_quadrant { |x, y|
 		quadrant = quadrant.shift(1);
 		case
-		    {(x<=0.55) && (x>=0.45) && (y<=0.55) && (y>=0.45)} {quadrant.put(0,0);tracker[0]=tracker[0]+1}//quadrant 0
-		    {(x<=0.49) && (y<=0.49)} {quadrant.put(0,3);tracker[3]=tracker[3]+1}//quadrant 3
-		    {(x>=0.51) && (y<=0.49)} {quadrant.put(0,4);tracker[4]=tracker[4]+1}//quadrant 4
-		    {(x<=0.49) && (y>=0.51)} {quadrant.put(0,2);tracker[2]=tracker[2]+1}//quadrant 2
-		    {(x>=0.55) && (y>=0.51)} {quadrant.put(0,1);tracker[1]=tracker[1]+1};//quadrant 1
+		    {(x<=0.45) && (y<=0.45)} {quadrant.put(0,3);tracker[3]=tracker[3]+1}//quadrant 3
+		    {(x>=0.55) && (y<=0.45)} {quadrant.put(0,4);tracker[4]=tracker[4]+1}//quadrant 4
+		    {(x<=0.45) && (y>=0.55)} {quadrant.put(0,2);tracker[2]=tracker[2]+1}//quadrant 2
+		    {(x>=0.55) && (y>=0.55)} {quadrant.put(0,1);tracker[1]=tracker[1]+1}//quadrant 1
+		    {(x<=0.55) && (x>=0.45) && (y<=0.55) && (y>=0.45)} {quadrant.put(0,0);tracker[0]=tracker[0]+1};//quadrant 0
+		//correct order to prevent silences when changing quadrants??? not working?
 	}
 
 	//map different types of processing to the quadrants using the quadrant names
@@ -703,6 +852,19 @@ Sway : Singleton {
 		wldrop.fadeTime = time;
 		wloutof.fadeTime = time;
 		wlmode.fadeTime = time;
+		//distort
+		dslevel.fadeTime = time;
+		//smear
+		smlevel.fadeTime = time;
+		//microtonal cloud
+		timespread.fadeTime = time;
+		pitchspread.fadeTime = time;
+		//pools reverb
+		plshimmer.fadeTime = time;
+		plamp.fadeTime = time;
+		plverb.fadeTime = time;
+		//var speed
+		vsspeed.fadeTime = time;
 	}
 
 	choose_new_processing {|qrant|
@@ -757,6 +919,13 @@ Sway : Singleton {
 		all_processing.put(\filter, {this.filter});
 		all_processing.put(\freeze, {this.freeze});
 		all_processing.put(\waveloss, {this.waveloss});
+		all_processing.put(\distortion, {this.distort});
+		all_processing.put(\smear, {this.smear});
+		all_processing.put(\microtonalcloud, {this.microtonalcloud});
+		all_processing.put(\pools, {this.pools});
+		all_processing.put(\amcascade, {this.amcascade});
+		all_processing.put(\amcascade, {this.varspeed});
+
 		//make all processing currently available
 		available_processing = Dictionary.new;
 		available_processing.put(\silence, {this.silence});
@@ -770,6 +939,12 @@ Sway : Singleton {
 		available_processing.put(\filter, {this.filter});
 		available_processing.put(\freeze, {this.freeze});
 		available_processing.put(\waveloss, {this.waveloss});
+		available_processing.put(\distortion, {this.distort});
+		available_processing.put(\smear, {this.smear});
+		available_processing.put(\microtonalcloud, {this.microtonalcloud});
+		available_processing.put(\pools, {this.pools});
+		available_processing.put(\amcascade, {this.amcascade});
+		available_processing.put(\amcascade, {this.varspeed});
 		this.assign_quadrant(xy[0], xy[1]);
 		this.map_quadrants(quadrant_names);
 		//this next line randomizies the quadrant space on startup
@@ -823,6 +998,16 @@ Sway : Singleton {
 		wldrop.free(1);
 		wloutof.free(1);
 		wlmode.free(1);
+		dslevel.free(1);
+		smlevel.free(1);
+		timespread.free(1);
+		pitchspread.free(1);
+		plshimmer.free(1);
+		plamp.free(1);
+		plverb.free(1);
+		vsspeed.free(1);
+
+
 		analysis_loop.stop;
 		this.clear;
 		//Server.freeAll;

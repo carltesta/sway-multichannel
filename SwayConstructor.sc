@@ -1,12 +1,14 @@
 SwayConstructor : Singleton {
 
-	var <>gui, <>counter=0, <>wait_time=1.0, <>quadrant, <>global, <>amp, <>channel, <>global_loop, <>mixer_bus, <>monitor, <>solo_done=false, <>video_loop, <>hydra, <>blends, <>aggregatexy, <>averagexy, <>aggregateamp, <>aggregateclarity, <>aggregatedensity, <>video_verbose=false;
+	var <>gui, <>counter=0, <>wait_time=1.0, <>quadrant, <>global, <>amp, <>onsets, <>clarity, <>channel, <>global_loop, <>mixer_bus, <>monitor, <>solo_done=false, <>pools_done=false, <>amcascade_done=false, <>video_loop, <>hydra, <>blends, <>aggregatexy, <>averagexy, <>aggregateamp, <>aggregateclarity, <>aggregatedensity, <>video_verbose=false;
 
 	init {
 		//build structures for global changes
 		global = Dictionary.new;
 		quadrant = Dictionary.new;
 		amp = Dictionary.new;
+		clarity = Dictionary.new;
+		onsets = Dictionary.new;
 		channel = Dictionary.new;
 		//start global loop here
 		global_loop = TaskProxy.new({ loop {
@@ -93,6 +95,15 @@ SwayConstructor : Singleton {
 
 	check_all_clarity {
 		//if all above threshold
+		if(pools_done==false, {
+		Sway.all.keysValuesDo({|key,val|
+			channel.put(key, val.input.get(\chan));
+			clarity.put(key, val.above_clarity_thresh);
+			clarity = clarity.select({|item|item==true});
+			});
+		case
+		{clarity.size==Sway.all.size}{this.pools_all};
+		},{});
 		//if all below threshold
 		//if one above threshold
 		//if one below threshold
@@ -100,6 +111,15 @@ SwayConstructor : Singleton {
 
 	check_all_onsets {
 		//if all above threshold
+		if(amcascade_done==false, {
+		Sway.all.keysValuesDo({|key,val|
+			channel.put(key, val.input.get(\chan));
+			onsets.put(key, val.above_density_thresh);
+			onsets = onsets.select({|item|item==true});
+			});
+		case
+		{onsets.size==Sway.all.size}{this.amcascade_all};
+		},{});
 		//if all below threshold
 		//if one above threshold
 		//if one below threshold
@@ -159,6 +179,7 @@ SwayConstructor : Singleton {
 			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
 		});
 		solo_done=true;
+		//global_loop.reset;
 	}
 
 	decouple_all {
@@ -183,6 +204,7 @@ SwayConstructor : Singleton {
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
+		//global_loop.reset;
 	}
 
 	delay_all {
@@ -209,6 +231,7 @@ SwayConstructor : Singleton {
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
+		//global_loop.reset;
 	}
 
 	texture_all {
@@ -235,6 +258,7 @@ SwayConstructor : Singleton {
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
+		//global_loop.reset;
 	}
 
 	cascade_all {
@@ -261,6 +285,35 @@ SwayConstructor : Singleton {
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
+		//global_loop.reset;
+	}
+
+	amcascade_all {
+		var old_fade = Dictionary.new;
+		var old = Dictionary.new;
+		var limit;
+		Sway.all.keysValuesDo({|key,val|
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
+			//val.analysis_on=false;
+			old_fade.put(key, val.fade);//capture old fadetime
+			val.fade_time(5);//change fadetime
+			old.put(key, val.quadrant_names);
+			val.amcascade;
+			(val.name++": Global Amp Mod Cascade Beginning").postln;
+			limit = val.timelimit;
+		});
+		limit.wait;
+		Sway.all.keysValuesDo({|key,val|
+			(val.name++": Global Amp Mod Cascade Complete").postln;
+			val.fade_time(old_fade.at(key));//reapply old fade
+			val.map_quadrants(old.at(key));
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
+			//val.analysis_on=true;
+			val.global_change=false;
+			val.quadrant_flag=true;
+		});
+		amcascade_done=true;
+		//global_loop.reset;
 	}
 
 	waveloss_all {
@@ -287,6 +340,36 @@ SwayConstructor : Singleton {
 			val.global_change=false;
 			val.quadrant_flag=true;
 		});
+		//global_loop.reset;
+	}
+
+	pools_all {
+		var old_fade = Dictionary.new;
+		var old = Dictionary.new;
+		var limit;
+		Sway.all.keysValuesDo({|key,val|
+			val.polarity=false;//turn off polarity for this effect type
+			val.quadrant_change=false;//turn off quadrant change to prevent processing changes
+			//val.analysis_on=false;
+			old_fade.put(key, val.fade);//capture old fadetime
+			val.fade_time(5);//change fadetime
+			old.put(key, val.quadrant_names);
+			val.pools;
+			(val.name++": Global Pools Beginning").postln;
+			limit = val.timelimit;
+		});
+		limit.wait;
+		Sway.all.keysValuesDo({|key,val|
+			(val.name++": Global Pools Complete").postln;
+			val.fade_time(old_fade.at(key));//reapply old fade
+			val.map_quadrants(old.at(key));
+			val.quadrant_change=true;//turn quadrant changes back on so that processing grids can change
+			//val.analysis_on=true;
+			val.global_change=false;
+			val.quadrant_flag=true;
+		});
+		pools_done=true;
+		//global_loop.reset;
 	}
 
 	reset_all {
@@ -295,6 +378,7 @@ SwayConstructor : Singleton {
 			value.reset;
 		});
 		solo_done=false;
+		pools_done=false;
 	}
 
 	end_all {
