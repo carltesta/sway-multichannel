@@ -49,7 +49,10 @@ SwayConstructor : Singleton {
 		num.do({|n|
 			Sway(n.asSymbol).input.set(\chan, n);
 			Sway(n.asSymbol).analysis_input.set(\chan, n);
+			//next line commented out for custom Splice setting
 			Sway(n.asSymbol).output.playN([(n+2),mixer_bus.subBus(n)]);
+			//Sway(n.asSymbol).output.playN([mixer_bus.subBus(n)]);
+			//Sway(n.asSymbol).output.playN([(n+2),mixer_bus.subBus(n)]);
 
 		});
 		1.0.wait;
