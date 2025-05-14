@@ -3,7 +3,7 @@ SwayGUI : Singleton {
 	//Processing Graph GUI for Sway
 	//Used to be part of Sway class, but separated it out for rebuild of prototype 3
 
-	var <>win, testwin, testview, testcolumn, testrow, color_scheme, main, view, text, amp_sliders, step_slider, grav_slider, refresh_slider, mixer_slider, updater, formatted_x, formatted_y;
+	var <>win, testwin, testview, testcolumn, testrow, color_scheme, main, view, text, amp_sliders, step_slider, grav_slider, refresh_slider, mixer_slider, updater, formatted_x, formatted_y, types, setAllmenu;
 
    init {
 		win = Window("Sway", Rect(0, 600, 1200, 300));
@@ -220,7 +220,18 @@ SwayGUI : Singleton {
 		testview.startRow;
 			//change processing type for all channels to test levels
 
-		Button(testview, Rect(0,0,100,50))
+		types = #[silence,reverb,ampmod,delay,freeze,pitchbend,filter,granular,textural,cascade,waveloss,distort,smear,microtonalcloud,pools,amcascade,varspeed];
+
+		setAllmenu = PopUpMenu(testview, Rect(300,300,400,60)).items_(types).font_(Font("Osaka", 60));
+		setAllmenu.action_({|menu|
+			var effect = menu.item;
+			[menu.value,menu.item].postln;
+			Sway.all.keysValuesDo({|name,instance,i|
+				instance.effect;
+			});
+		});
+
+		/*Button(testview, Rect(0,0,100,50))
 		.states_([
 			["silence all", Color.black, Color.white]
 		])
@@ -389,7 +400,7 @@ SwayGUI : Singleton {
 			Sway.all.keysValuesDo({|name, instance, i|
 				instance.varspeed;
 			});
-		});
+		});*/
 
 		testwin.front;
 
