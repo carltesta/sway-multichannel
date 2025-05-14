@@ -8,7 +8,7 @@ Sway : Singleton {
 
 	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=45, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
 <>wldrop, <>wloutof, <>wlmode, <>dslevel, <>smlevel, <>timespread, <>pitchspread, <>plshimmer, <>plamp, <>plverb, <>vsspeed, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=180,//timelimit*16 for video
-<>available_processing, <>all_processing, <>global_change=false, <>quadrant_change=true;
+<>available_processing, <>all_processing, <>current_processing, <>global_change=false, <>quadrant_change=true;
 
     init {
 		//Setup initial parameters
@@ -416,6 +416,7 @@ Sway : Singleton {
 			am;
 		 };
 		(this.name++": Amplitude Modulation").postln;
+		current_processing = "Ampplitude Modulation";
 	}
 
 	//Change processing to Pitch tracking Ring Modulator
@@ -433,6 +434,7 @@ Sway : Singleton {
 			verb;
 		};
 		(this.name++": Ring Modulation").postln;
+		current_processing = "Ring Modulation";
 	}
 
 	//Change processing to reverb
@@ -442,6 +444,7 @@ Sway : Singleton {
 		//amplitude -> roomsize
 		processing.source = { FreeVerb.ar(in: input.ar(1), mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1)) };
 		(this.name++": Reverb").postln;
+		current_processing = "Reverb";
 		}
 
 	//Change processing to waveloss
@@ -456,6 +459,7 @@ Sway : Singleton {
 			reverb*1.5;
 		};
 		(this.name++": WaveLoss").postln;
+		current_processing = "WaveLoss";
 		}
 
 	/*
@@ -504,6 +508,7 @@ Sway : Singleton {
 			\amp, Pwhite(0.4,0.6),
 			);
 		(this.name++": Freeze Pattern").postln;
+		current_processing = "Freeze Pattern";
 	}
 
 	//Change processing to delay
@@ -525,6 +530,7 @@ Sway : Singleton {
 			delay;
 		};
 		(this.name++": Delay").postln;
+		current_processing = "Delay";
 	}
 	//Change processing to pitch bend
 	pitchbend {
@@ -535,6 +541,7 @@ Sway : Singleton {
 			PitchShift.ar(input.ar(1), 1, pbbend.kr(1), 0.2, pbtime.kr(1))
 		};
 		(this.name++": Pitch Bend").postln;
+		current_processing = "Pitch Bend";
 	}
 
 	filter {
@@ -545,6 +552,7 @@ Sway : Singleton {
 			RLPF.ar(input.ar(1), filtfreq.kr(1), filtrq.kr(1)).tanh;
 		};
 		(this.name++": Filter").postln;
+		current_processing = "Filter";
 	}
 
 	//Change processing to granular (from Sway 0.2)
@@ -563,6 +571,7 @@ Sway : Singleton {
 			sound;
 		};
 		(this.name++": Granular").postln;
+		current_processing = "Granular";
 	}
 
 	//Change processing to grains
@@ -584,6 +593,7 @@ Sway : Singleton {
 		    sound;
 	    };
 		(this.name++": Grains").postln;
+		current_processing = "Grains";
 	}
 
 	//Change processing to textural synth from IRIS
@@ -608,6 +618,7 @@ Sway : Singleton {
 			\amp, 0.35,
 			);
 		(this.name++": Textural").postln;
+		current_processing = "Textural";
 	}
 
 	//TO DO: Work on this grain processing, perhaps change it to a PatternProxy running the texturestretch synthdef??
@@ -634,6 +645,7 @@ Sway : Singleton {
 		    sound;
 	    };
 		(this.name++": Grainer").postln;
+		current_processing = "Grainer";
 	}
 
 	//change processing to cascade
@@ -649,9 +661,10 @@ Sway : Singleton {
 			mix;
 		};
 		(this.name++": Cascade").postln;
+		current_processing = "Cascade";
 	}
 
-	//Change processing to dirt_distort
+	//Change processing to dirt_dnistort
 	distort {
 		//control mapping:
 		//onsets -> distortion level
@@ -668,6 +681,7 @@ Sway : Singleton {
 			//reverb;
 		};
 		(this.name++": Distortion+Reverb").postln;
+		current_processing = "Distortion+Reverb";
 	}
 
 	//Change processing to dirt_spectral_smear
@@ -685,6 +699,7 @@ Sway : Singleton {
 			//reverb;
 		};
 		(this.name++": Smear+Reverb").postln;
+		current_processing = "Smear+Reverb";
 }
 
 	//Change processing to microtonal cloud
@@ -702,6 +717,7 @@ Sway : Singleton {
 			Mix.ar(pitchshift);
 		};
 		(this.name++": Microtonal Cloud").postln;
+		current_processing = "Microtonal Cloud";
 }
 
 	pools {
@@ -728,6 +744,7 @@ Sway : Singleton {
 
 		};
 		(this.name++": Pools").postln;
+		current_processing = "Pools";
 		}
 
 	//change processing to amp mod cascade
@@ -744,6 +761,7 @@ Sway : Singleton {
 			am;
 		};
 		(this.name++": AmpMod Cascade").postln;
+		current_processing = "AmpMod Cascade";
 	}
 
 	//change processing to halfspeed
@@ -757,12 +775,14 @@ Sway : Singleton {
 			sound;
 		};
 		(this.name++": Variable Speed Playback").postln;
+		current_processing = "Variable Speed Playback";
 	}
 
 	//Silence processing
 	silence {
 		processing.source = { Silent.ar(1) };
 		(this.name++": Silence").postln;
+		current_processing = "Silence";
 	}
 
 	//execute change in processing type
