@@ -224,10 +224,9 @@ SwayGUI : Singleton {
 
 		setAllmenu = PopUpMenu(testview, Rect(300,300,400,60)).items_(types).font_(Font("Osaka", 60));
 		setAllmenu.action_({|menu|
-			var effect = menu.item;
 			[menu.value,menu.item].postln;
 			Sway.all.keysValuesDo({|name,instance,i|
-				instance.effect;
+				instance.perform(menu.item);
 			});
 		});
 
