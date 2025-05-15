@@ -7,7 +7,7 @@ Sway : Singleton {
 	//hydra settings <>refresh_rate=0.0625, <>gravity=0.002, <>step=0.002;
 
 	var <>xy, <>quadrant, <>quadrant_names, <>quadrant_map, <>input, <>output, <>analysis_input, <>buffer, <>fftbuffer, <>delaybuffer, <>recorder, <>processing, <>fade=45, <>onsets, <>amplitude, <>clarity, <>flatness, <>amfreq, <>rvmix, <>rvsize, <>rvdamp, <>delaytime, <>delayfeedback, <>delaysourcevol, <>delaylatch, <>pbtime, <>pbbend, <>graintrig, <>grainfreq, <>grainpos, <>grainsize, <>granpos, <>granenvspeed, <>granrate, <>filtfreq, <>filtrq, <>freezedurmin, <>freezedurmax, <>freezeleg, <>texturalmin, <>texturalmax, <>texturalsusmin, <>texturalsusmax, <>texturalposrate, <>texturalpostype, <>texturalrate,
-<>wldrop, <>wloutof, <>wlmode, <>dslevel, <>smlevel, <>timespread, <>pitchspread, <>plshimmer, <>plamp, <>plverb, <>vsspeed, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=180,//timelimit*16 for video
+<>wldrop, <>wloutof, <>wlmode, <>dslevel, <>smlevel, <>timespread, <>pitchspread, <>plshimmer, <>plamp, <>plverb, <>vsspeed, <>analysis_loop, <>above_amp_thresh=false, <>above_clarity_thresh=false, <>above_density_thresh=false, <>thresholds, <>tracker, <>count=0, <>analysis_on=true, <>tracker_on=true, <>audio_processing=true, <>verbose=false, <>polarity=false, <>quadrant_flag=false, <>timelimit=180,<>tfviews,//timelimit*16 for video
 <>available_processing, <>all_processing, <>current_processing, <>global_change=false, <>quadrant_change=true;
 
     init {
@@ -913,6 +913,7 @@ Sway : Singleton {
 		tracker = [0,0,0,0,0];//number of times in each quadrant area
 		//TO DO: the number of data structures I have to keep track of the quadrants and the names of the processing and all the available processing etc feels very clunky. There must be a better way to manage all this information.
 		//Experimenting with Dictionary for Threshold Data structure
+		tfviews = Dictionary.new;
 		thresholds = Dictionary.new;
 		thresholds.putPairs([\amp, 4, \clarity, 0.6, \density, 1.5]);
 		//If an old archive of thresholds doesn't exist, create it with the default values
