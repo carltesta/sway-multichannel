@@ -6,13 +6,13 @@ SwayGUI : Singleton {
 	var <>win, testwin, testview, testcolumn, testrow, color_scheme, main, view, text, amp_sliders, step_slider, grav_slider, refresh_slider, mixer_slider, updater, formatted_x, formatted_y, types, setAllmenu;
 
    init {
-		win = Window("Sway", Rect(0, 300, 330, 300));
+		win = Window("Sway", Rect(0, 300, 400, 400));
 		win.onClose_({this.clear});
 
 		//Use a differing color scheme to different what GUI goes with which channel
 		color_scheme = [Color.white, Color.yellow, Color.green, Color.blue, Color.red, Color.gray];
 
-		main = View.new(win,Rect(0,0,325,300))
+		main = View.new(win,Rect(0,0,400,400))
 		//.decorator_(FlowLayout(Rect(0,0,1200,600),10@10,5@5));
 		.layout_(HLayout());
 
@@ -155,7 +155,7 @@ SwayGUI : Singleton {
 		win.front;
 
 		//testing GUI
-		testwin = Window("Sway-Controls", Rect(250, 100, 1200, 300));
+		/*testwin = Window("Sway-Controls", Rect(250, 100, 1200, 300));
 		testview = FlowView(testwin);
 		//turn verbose on and off for each channel
 		Sway.all.keysValuesDo({|name, instance, i|
@@ -401,7 +401,7 @@ SwayGUI : Singleton {
 			});
 		});*/
 
-		testwin.front;
+		testwin.front;*/
 
 		//gui updater task
 		updater = TaskProxy.new({ loop {
