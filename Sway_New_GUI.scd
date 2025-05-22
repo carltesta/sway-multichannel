@@ -1,6 +1,6 @@
 //for testing
 
-SwayConstructor(\sway, 3);
+SwayConstructor(\sway, 6);
 
 //run gui
 (
@@ -17,7 +17,8 @@ Spec.add(\clarity, ControlSpec(0,1, default: 0.4));
 
 Sway.all.keysValuesDo({|name, instance, i|
 
-	var archive = (Archive.global.at(("sway"++name++"thresholds").asSymbol));
+	var archive = ("sway"++name++"thresholds").asSymbol;
+	//var archive = (Archive.global.at(("sway"++name++"thresholds").asSymbol));
 
 	StaticText(~win, Rect(10,10,200,20))
 	.string_(("Channel "++((name.asInteger))));
@@ -30,13 +31,10 @@ Sway.all.keysValuesDo({|name, instance, i|
 		var spec = (k.asSymbol).asSpec;
 
 		instance.tfviews[k.asSymbol] = TextField(~win, Rect(10,10,200,20)).string_(k);
-		EZSlider(~win, Rect(10,10,350,20), label: (k++" thresh"), labelWidth: 100, controlSpec: spec)
-		//.value(0.5)
-		.value_(spec.unmap(archive.at(symbol)))
+		EZSlider(~win, Rect(10,10,350,20), label: (k++" thresh"), labelWidth: 100, controlSpec: spec, initVal: Archive.global.at(archive).at(symbol))
 		.action_({|val|
-			instance.thresholds.put(symbol, spec.map(val.value));
-			//(name++": "++k++" threshold: "++(val.value*40)).postln;
-			Archive.global.put(("sway"++name++"thresholds").asSymbol, instance.thresholds);
+			instance.thresholds.put(symbol, val.value);
+			Archive.global.put(archive,instance.thresholds);
 			//val.value.postln;
 		});
 
