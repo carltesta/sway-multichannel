@@ -1,25 +1,29 @@
-//Reverb Processor for Sway
-
+//Freeze Processor for Sway
+/*
 
 ~swayInstances.do({|sway, n|
-	sway.addProcessor("Reverb", \reverb, {|swayInstance|
+	sway.addProcessor("Freeze", \freeze, {|swayInstance|
 	{
-		var rvmix = swayInstance.getModulatorNode(\rvmix);
-		var rvsize = swayInstance.getModulatorNode(\rvsize);
-		var rvdamp = swayInstance.getModulatorNode(\rvdamp);
-		var out = FreeVerb.ar(in: swayInstance.input.ar(1), mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
-		out;
+			//time can vary with density
+			//maybe there should be some changing probability that the freeze will happen
+			//maybe there should be a freeze when a definite pitch is detected?
+			//maybe whether the freeze happens with pitch or without could be determined by the current polarity
+
+//probability can be determined by amplitude+ clarity?
+
+//length of freeze?
+
+
+			//MiVerb.ar(swayInstance.input.ar(1,0), time, drywet, damp, hp, freeze);
 	}
 });
 });
 
-//Server.default.sync;
-
 //control mapping:
-//density -> mix
-//amplitude (30 sec average) -> roomsize
-//clarity -> high freq damping
-
+//density ->
+//amplitude ->
+//clarity ->
+/*
 ~swayInstances.do({|sway, n|
 	sway.addModulator("Density -> Mix", \rvmix, [\reverb, \waveloss],
 		{|swayInstance|
@@ -52,3 +56,4 @@ sway.addModulator("Clarity -> HF Damp", \rvdamp, [\reverb, \waveloss],
 });
 
 ("Reverb Processor and Modulators Added").postln;
+*/

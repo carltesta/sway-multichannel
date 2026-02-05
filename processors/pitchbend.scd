@@ -20,7 +20,9 @@ sway.addModulator("Density -> Time", \pbtime, \pitchbend,
 },
 	{|swayInstance|
 		{ swayInstance.density.kr(1,0).linlin(0,6,1,0.1) }
-});
+},
+		spec: ControlSpec(0,1,\lin,0.01)
+	);
 
 sway.addModulator("Amp -> Bend", \pbbend, \pitchbend,
 		{|swayInstance|
@@ -28,7 +30,9 @@ sway.addModulator("Amp -> Bend", \pbbend, \pitchbend,
 },
 {|swayInstance|
 	{ swayInstance.amplitude.kr(1,0).linlin(0,10,1.5,0.75) }
-});
+},
+		spec: ControlSpec(0.75,1.5,\lin,0.01)
+	);
 });
 
 ("Pitch Bend Processor and Modulators Added").postln;

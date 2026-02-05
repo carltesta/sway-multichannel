@@ -2,8 +2,7 @@ SwayS {
 
 	var <>name, <>channel=0, <>numChan, <>input, <>analysis_input, <>buffer, <>processing, <>recorder, <>position, <>wfsNetAddr, <>refresh_rate=1, <>fade=30, <>output,
 	<>density, <>clarity, <>amplitude, <>tempo, <>gridanalysis, <>xbus, <>ybus, <>aThreshBus, <>aThresh=2,
-	<current_processing, <current_processingKey, <>processors, <>modulators, <current_spatializer, <>spatializers, <>spatializerBusToOSC,
-	<>task, <>analysisView, <>gridView;
+	<current_processing, <current_processingKey=\silence, <>processors, <>modulators, <current_spatializer, <>spatializers, <>spatializerOSC, <oscForward, <>analysisView, <>changeProcessingView, <>modulatorView, <>gridView, <quadrantHistory, <quadrant=nil;
 
 	new {
 		this.init;
@@ -20,6 +19,9 @@ SwayS {
 		//assign wfsNetAddr
 		wfsNetAddr = NetAddr("127.0.0.1", 57120);
 
+		//quadrant history
+		quadrantHistory = List.new;
+
 		//audio input
 
 		input = NodeProxy.audio(Server.default, numChan)
@@ -35,7 +37,7 @@ SwayS {
 		recorder = NodeProxy.audio(Server.default, 1)
 		.source = {
 			var off = Lag2.kr(A2K.kr(DetectSilence.ar(input.ar(1), 0.1), 0.3));
-            var on = 1-off;
+			var on = 1-off;
 			var fade = MulAdd.new(on, 2, 1.neg);
 			var out = XFade2.ar(Silent.ar(), input.ar(1), fade);
 			RecordBuf.ar(out, buffer, loop: 1, run: on);
@@ -60,8 +62,28 @@ SwayS {
 		position = NodeProxy.control(Server.default, 2)
 		.source = { DC.kr(0!2); };
 
-		spatializerBusToOSC = [BusToOSC.new(wfsNetAddr, position.bus.subBus(0,1), "/"++channel++"/x/", refresh_rate, 1),
+		spatializerOSC = [BusToOSC.new(wfsNetAddr, position.bus.subBus(0,1), "/"++channel++"/x/", refresh_rate, 1),
 			BusToOSC.new(wfsNetAddr, position.bus.subBus(1,1), "/"++channel++"/y/", refresh_rate, 1)];
+
+		/*
+		spatializerOSC = NodeProxy.control(Server.default, 2)
+		.source = {
+			SendReply.kr(Impulse.kr(1.0),("x").asSymbol, position.kr(1,0));
+			SendReply.kr(Impulse.kr(1.0),("y").asSymbol, position.kr(1,1));
+		};
+
+
+
+		oscForward = [OSCdef(\wfsOSCX, {|msg|
+
+			//wfsNetAddr.sendMsg("/"++msg[3]++"/x/", msg[4])
+			msg.postln;
+		}, ("x").asSymbol), OSCdef(\wfsOSCY, {|msg|
+
+			//wfsNetAddr.sendMsg("/"++msg[3]++"/y/", msg[4])
+			msg.postln;
+		}, ("y").asSymbol)];
+		*/
 
 		//build analysis on start
 		this.build_analysis;
@@ -83,10 +105,11 @@ SwayS {
 			var shortValue = (shortStats[0]/1);
 			//var longValue = (longStats[0]/long_win);
 			//[shortValue, longValue];
+			SendReply.kr(Impulse.kr(1), ("/"++channel++"/density/").asSymbol, shortValue);
 			shortValue;
 		};
 
-		amplitude = NodeProxy.control(Server.default, 2)
+		amplitude = NodeProxy.control(Server.default, 1)
 		.source = {
 			//Amplitude Tracker
 			var chain = FFT(LocalBuf(1024), analysis_input.ar(1));
@@ -94,18 +117,21 @@ SwayS {
 			//var shortAverage = AverageOutput.kr(loudness, Impulse.kr(short_win.reciprocal));
 			//var longAverage = AverageOutput.kr(loudness, Impulse.kr(long_win.reciprocal));
 			//[shortAverage, longAverage];
+			SendReply.kr(Impulse.kr(1), ("/"++channel++"/amplitude/").asSymbol, loudness);
 			loudness;
 		};
 
-		clarity = NodeProxy.control(Server.default, 2)
+		clarity = NodeProxy.control(Server.default, 1)
 		.source = {
 			var freq, hasFreq, shortAverage, longAverage;
 			//Pitch hasfreq Tracker
-			# freq, hasFreq = Pitch.kr(analysis_input.ar(1));
-			shortAverage = AverageOutput.kr(hasFreq,Impulse.kr(1));
+			# freq, hasFreq = Tartini.kr(analysis_input.ar(1));
+			//shortAverage = AverageOutput.kr(hasFreq,Impulse.kr(1));
 			//longAverage = AverageOutput.kr(hasFreq,Impulse.kr(long_win.reciprocal));
 			//[shortAverage, longAverage];
-			shortAverage;
+			//shortAverage;
+			SendReply.kr(Impulse.kr(1), ("/"++channel++"/clarity/").asSymbol, hasFreq);
+			hasFreq;
 		};
 
 		tempo = NodeProxy.control(Server.default, 1)
@@ -119,6 +145,10 @@ SwayS {
 			var d = this.density.kr(1,0).lag(lag),
 			c = this.clarity.kr(1,0).lag(lag),
 			a = this.amplitude.kr(1,0).lag(lag);
+
+			SendReply.kr(Impulse.kr(1), ("/"++channel++"/x/").asSymbol, c);
+			SendReply.kr(Impulse.kr(1), ("/"++channel++"/y/").asSymbol, d);
+			SendReply.kr(Impulse.kr(1), ("/"++channel++"/aboveThresh/").asSymbol, a > this.aThresh);
 
 			// scale these to 0 - 1 and curve
 			c = c.clip.lincurve(0, 1, 0, 1, clarityWarp);
@@ -144,6 +174,9 @@ SwayS {
 			\func -> func,
 			\fadeTime -> fadeTime
 		]);
+		(changeProcessingView.isNil.not).if({
+			this.refreshProcessorView;
+		});
 	}
 
 	runProcessor {|key|
@@ -152,19 +185,27 @@ SwayS {
 		(processor.isNil.not).if({
 			//processing.source.fadeTime = processor[\fadeTime];
 			processing.source = processor[\func].value(this);
-			(this.name++": " ++ "Processing is: " ++ processor[\name]).postln;
+			(this.name++": " ++ "Processing is " ++ processor[\name]).postln;
 			current_processing = processor[\name];
 			current_processingKey = processor[\key];
 		}, {
 			"Processor does not exist".postln;
-		})
+		});
+
+		(this.modulatorView.isNil.not).if({
+			this.modulatorGUI;
+		});
+
+		(this.analysisView.isNil.not).if({
+			this.analysisView[\processing].string_(this.current_processing);
+		});
 	}
 
 	getModulatorNode {|key|
 		^this.modulators[key][\node];
 	}
 
-	addModulator {|name, key, assocProc, func, reversePolarityFunc, fadeTime = 1|
+	addModulator {|name, key, assocProc, func, reversePolarityFunc, fadeTime = 1, spec|
 		(this.modulators.isNil).if({
 			modulators = Dictionary.new;
 		});
@@ -174,8 +215,15 @@ SwayS {
 			\assocProc -> assocProc,
 			\reversePolarityFunc -> reversePolarityFunc,
 			\fadeTime -> fadeTime,
-			\node -> NodeProxy(Server.default, 'control', 1)
+			\node -> NodeProxy(Server.default, 'control', 1),
+			\tracker -> NodeProxy(Server.default, 'control', 1),
+			\spec -> spec
 		]);
+		this.runModulator(key.asSymbol);
+		this.addTracker(key.asSymbol);
+		(changeProcessingView.isNil.not).if({
+			this.refreshProcessorView;
+		});
 	}
 
 	runModulator {|key, reversePolarity = false|
@@ -194,11 +242,65 @@ SwayS {
 		})
 	}
 
+	addTracker {|key,rate=10|
+		var modulator = this.modulators[key],
+		node = modulator[\node],
+		tracker = modulator[\tracker];
+
+		tracker.source = {
+			SendReply.kr(Impulse.kr(rate), ("/"++channel++"/"++key).asSymbol, node.kr(1,0));
+		};
+
+		("The Tracker key is: "++key).postln;
+	}
+
+	getAssocModulators { |assocProcKey|
+		var mods;
+		//return all of the keys for modulators associated with the given processing type
+
+		mods = this.modulators.keys.select({|key|
+			(this.modulators[key][\assocProc].isArray).if({
+				this.modulators[key][\assocProc].includes(assocProcKey)},{
+				this.modulators[key][\assocProc] == assocProcKey});
+		});
+		^mods;
+	}
+
+	modulatorGUI { |window|
+		var flow, lineHeight = 25, labelWidth = 150, valueWidth = 100;
+
+		modulatorView.isNil.if({
+			modulatorView = View.new(window, (labelWidth+labelWidth+valueWidth+30)@(lineHeight*8));
+			flow = modulatorView.addFlowLayout();
+		});
+		modulatorView.removeAll;
+		modulatorView.decorator.reset;
+		//The idea for this Gui is to be able to see the analysis inputs getting mapped to paramteters and perhaps be able to adjust the mapping? Via an iEnvGen?
+		StaticText(modulatorView, Rect(0,0,valueWidth, lineHeight))
+		.string_((this.current_processing++" Mods"));
+		modulatorView.decorator.nextLine;
+		this.getAssocModulators(current_processingKey).do({|key|
+			var slider, nbox;
+			StaticText(modulatorView, Rect(0,0,labelWidth, lineHeight))
+			.string_(this.modulators[key][\name]);
+			slider = Slider.new(modulatorView, Rect(0,0,valueWidth, lineHeight));
+			nbox = NumberBox(modulatorView, Rect(0,0,valueWidth/3,lineHeight));
+			OSCdef(("c"++channel.asString++key++"OSC").asSymbol, {|msg|
+				defer({
+					slider.value = this.modulators[key][\spec].unmap(msg[3]);
+					nbox.value = msg[3];
+				})
+			}, ("/"++channel++"/"++key).asSymbol);
+			modulatorView.decorator.nextLine;
+		});
+		^modulatorView;
+	}
+
 	processingGUI { |window|
-		var flow, changeProcessingView, popUp,
+		var flow, popUp, items, index,
 		lineHeight = 25, labelWidth = 150, valueWidth = 100;
 
-		changeProcessingView = View.new(window, (labelWidth+valueWidth+20)@(lineHeight*2));
+		changeProcessingView = View.new(window, (labelWidth+valueWidth+20)@(lineHeight));
 		flow = changeProcessingView.addFlowLayout();
 		//StaticText(changeProcessingView)
 		StaticText(changeProcessingView, Rect(10,10,labelWidth,lineHeight))
@@ -208,7 +310,9 @@ SwayS {
 		popUp.action_({|menu,item|
 			this.runProcessor(menu.item.asSymbol);
 		});
-		popUp.valueAction_(3);
+		items = this.processors.values.collect({|val| val[\key] }).asArray.sort;
+		index = items.indexOf(\silence);
+		popUp.valueAction_(index);
 		//.items(this.processors.keys.asArray);
 		//popUp.action({|menu| [menu.value,menu.item].postln;});
 
@@ -217,6 +321,15 @@ SwayS {
 			\menu -> popUp
 		];
 		^changeProcessingView;
+	}
+
+	refreshProcessorView {
+		var items = this.processors.values.collect({|val| val[\key] }).asArray.sort,
+		index = items.indexOf(this.current_processingKey) ? items.indexOf(\silence);
+
+		this.changeProcessingView[\menu]
+		.items_(items)
+		.value_(index);
 	}
 
 	spatializationGUI { |window|
@@ -268,6 +381,36 @@ SwayS {
 		xView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
 		StaticText(analysisView, labelWidth@lineHeight).string_("Y: ");
 		yView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
+
+		OSCdef(("c"++channel.asString++"clarity"++"OSC").asSymbol, {|msg|
+			defer({
+				clarityView.value = msg[3].round(0.01);
+			})
+		}, ("/"++channel++"/clarity/").asSymbol);
+
+		OSCdef(("c"++channel.asString++"density"++"OSC").asSymbol, {|msg|
+			defer({
+				densityView.value = msg[3];
+			})
+		}, ("/"++channel++"/density/").asSymbol);
+
+		OSCdef(("c"++channel.asString++"amplitude"++"OSC").asSymbol, {|msg|
+			defer({
+				ampView.value = msg[3].round(0.01);
+			})
+		}, ("/"++channel++"/amplitude/").asSymbol);
+
+		OSCdef(("c"++channel.asString++"xcoord"++"OSC").asSymbol, {|msg|
+			defer({
+				xView.value = msg[3];
+			})
+		}, ("/"++channel++"/x/").asSymbol);
+
+		OSCdef(("c"++channel.asString++"ycoord"++"OSC").asSymbol, {|msg|
+			defer({
+				yView.value = msg[3];
+			})
+		}, ("/"++channel++"/y/").asSymbol);
 		/*layout = VLayout([
 			HLayout([
 				StaticText().string_("density: "),
@@ -294,35 +437,6 @@ SwayS {
 			\y -> yView
 		];
 		^analysisView;
-	}
-
-	syncGUI {
-		task = TaskProxy({
-			loop {
-				this.refresh_rate.wait;
-				{this.analysisView[\processing].string_(this.current_processing.asString);}.defer;
-				this.density.bus.get({|v|
-					{ this.analysisView[\density].string_(v.round(0.001).asString); }.defer;
-				});
-				this.clarity.bus.get({|v|
-					{ this.analysisView[\clarity].string_(v.round(0.001).asString); }.defer;
-				});
-				this.amplitude.bus.get({|v|
-					{ this.analysisView[\amp].string_(v.round(0.001).asString); }.defer;
-				});
-				this.xbus.get({|v|
-					{ this.analysisView[\x].string_(v.round(0.001).asString); }.defer;
-				});
-				this.ybus.get({|v|
-					{ this.analysisView[\y].string_(v.round(0.001).asString); }.defer;
-				});
-			}
-		});
-		task.play;
-	}
-
-	stopSyncGUI {
-		task.stop;
 	}
 
 	gridGUI { |window|
@@ -360,25 +474,6 @@ SwayS {
 
 	}
 
-
-	verboseTask {
-		task = TaskProxy({
-			loop {
-				1.0.wait;
-
-				this.density.bus.get({|val| ("density: "++val).postln});
-				this.clarity.bus.get({|val| ("clarity: "++val).postln});
-				this.amplitude.bus.get({|val| ("amp: "++val).postln});
-		}});
-
-	}
-
-	verbose { |boolean=false|
-		boolean.if({
-			task.play},
-		{task.stop});
-	}
-
 	//The spatializers are Control NodeProxies that generate values between 0 and 1 for use within WFSCollider's spatial point source controls. Each spatializer should be a 2 channel NodeProxy with values coming out of the first channel corresponding to a sound source's x position and values on the second channel corresponding to a sound source's y position.
 	addSpatializer {|name, key, func, fadeTime = 1|
 		(this.spatializers.isNil).if({
@@ -405,4 +500,13 @@ SwayS {
 		})
 	}
 
+	getQuadrant {|x,y|
+
+		if((x>0.5)&&(y>0.5),{quadrant=1},
+			if((x>0.5)&&(y<0.5),{quadrant=2},
+				if((x<0.5)&&(y<0.5),{quadrant=3},
+					if((x<0.5)&&(y>0.5),{quadrant=4}
+		))));
+		^quadrant;
+	}
 }

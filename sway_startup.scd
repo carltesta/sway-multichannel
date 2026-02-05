@@ -1,10 +1,9 @@
 //Sway Startup File
 
-
 WFSLib.startup;
 (
 s.waitForBoot({
-    var w, f, numChannels=1,
+    var w, f, numChannels=2,
     dir = PathName.new(thisProcess.nowExecutingPath),
     processingDirectory = PathName.new(dir.pathOnly++"processors/"),
 	spatializersDirectory = PathName.new(dir.pathOnly++"spatializers/");
@@ -14,28 +13,31 @@ s.waitForBoot({
 
     s.sync;
 
-    ("Loading Sway Processors in Directory: /"++processingDirectory.folderName).postln;
+    ("Loading Sway Processors and Modulators in Directory: /"++processingDirectory.folderName).postln;
     processingDirectory.filesDo({|file| file.fullPath.asString.load;});
 	("Loading Sway Spatializers in Directory: /"++spatializersDirectory.folderName).postln;
     spatializersDirectory.filesDo({|file| file.fullPath.asString.load;});
-    ("Loading Sway Modulators").postln;
-    ~swayInstances.do({|sway, n|
-	sway.modulators.keysDo({|key| sway.runModulator(key.asSymbol)}); //activate all modulators with non-polarity mapping
-	});
 
     s.sync;
+
+	//set up channels and analysis inputs
+	~swayInstances.do({|sway, n|
+		sway.input.set(\chan, n);
+		sway.analysis_input.set(\chan, n);
+	});
 
 	~swayInstances.do({|sway, n|
     //sway.runProcessor(\silence);
-	//sway.output.play();
+	sway.output.play();
 	});
 
     s.sync;
 
-	w = Window.new("Sway", Rect(0,0,600,800));
+	w = Window.new("Sway", Rect(50,75,1200,700), scroll:true);
     f = w.addFlowLayout();
     ~swayInstances.do({|sway, n|
 	sway.analysisGUI(w);
+	sway.modulatorGUI(w);
     f.nextLine;
 	sway.processingGUI(w);
 	f.nextLine;
@@ -43,18 +45,21 @@ s.waitForBoot({
 	f.nextLine;
     //~sway.gridGUI(w);
 	//~sway.analysisGUI(w);*/
-    sway.syncGUI();
+    //sway.syncGUI();
+	sway.refreshProcessorView();
 	});
 	w.front;
 
     CmdPeriod.doOnce({
         w.close;
         ~swayInstances.do({|sway, n|
-		sway.stopSyncGUI();
+		//sway.stopSyncGUI();
 		});
     });
 });
 )
+
+/*
 ~swayInstances.do({|sway, n|
 sway.runSpatializer(\circle);
 });
@@ -62,3 +67,5 @@ sway.runSpatializer(\circle);
 ~swayInstances.do({|sway, n|
 sway.runProcessor(\pitchbend);
 });
+
+*/
