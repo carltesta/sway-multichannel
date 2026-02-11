@@ -25,7 +25,7 @@ SwayS {
 		//audio input
 
 		input = NodeProxy.audio(Server.default, numChan)
-		.source = { |chan=0| SoundIn.ar(chan,1.neg) };
+		.source = { |chan=0| SoundIn.ar(chan,) };//removed 1.neg in the mul argument
 
 		//analysis input
 
@@ -62,9 +62,9 @@ SwayS {
 		position = NodeProxy.control(Server.default, 2)
 		.source = { DC.kr(0!2); };
 
-		spatializerOSC = [BusToOSC.new(wfsNetAddr, position.bus.subBus(0,1), "/"++channel++"/x/", refresh_rate, 1),
+		/*spatializerOSC = [BusToOSC.new(wfsNetAddr, position.bus.subBus(0,1), "/"++channel++"/x/", refresh_rate, 1),
 			BusToOSC.new(wfsNetAddr, position.bus.subBus(1,1), "/"++channel++"/y/", refresh_rate, 1)];
-
+*/
 		/*
 		spatializerOSC = NodeProxy.control(Server.default, 2)
 		.source = {
@@ -205,7 +205,7 @@ SwayS {
 		^this.modulators[key][\node];
 	}
 
-	addModulator {|name, key, assocProc, func, reversePolarityFunc, fadeTime = 1, spec|
+	addModulator {|name, key, assocProc, func, reversePolarityFunc, lagTime=1, fadeTime=1, spec|
 		(this.modulators.isNil).if({
 			modulators = Dictionary.new;
 		});
@@ -217,6 +217,7 @@ SwayS {
 			\fadeTime -> fadeTime,
 			\node -> NodeProxy(Server.default, 'control', 1),
 			\tracker -> NodeProxy(Server.default, 'control', 1),
+			\lagTime -> lagTime,
 			\spec -> spec
 		]);
 		this.runModulator(key.asSymbol);
@@ -402,13 +403,14 @@ SwayS {
 
 		OSCdef(("c"++channel.asString++"xcoord"++"OSC").asSymbol, {|msg|
 			defer({
-				xView.value = msg[3];
+				xView.value = msg[3].round(0.01);
+				//msg.postln;
 			})
 		}, ("/"++channel++"/x/").asSymbol);
 
 		OSCdef(("c"++channel.asString++"ycoord"++"OSC").asSymbol, {|msg|
 			defer({
-				yView.value = msg[3];
+				yView.value = msg[3].round(0.01);
 			})
 		}, ("/"++channel++"/y/").asSymbol);
 		/*layout = VLayout([
