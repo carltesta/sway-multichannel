@@ -17,9 +17,9 @@
 ~swayInstances.do({|sway, n|
 	sway.addModulator("Density -> Filter Freq", \filtfreq, \filter,
 		{|swayInstance|
-	{ swayInstance.density.kr(1,0).linexp(0,6,500,5000) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,500,5000) }
 }, {|swayInstance|
-	{ swayInstance.density.kr(1,0).linexp(0,6,5000,5) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,5000,5) }
 },
 		spec: ControlSpec(500,5000,\exp,0.01)
 	);

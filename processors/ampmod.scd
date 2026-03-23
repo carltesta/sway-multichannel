@@ -20,10 +20,10 @@ sway.addProcessor("Amplitude Modulation", \ampmod, {|swayInstance|
 ~swayInstances.do({|sway, n|
 sway.addModulator("Amp -> Rate", \amrate, \ampmod,
 		{|swayInstance|
-	{ swayInstance.amplitude.kr(1,0).linlin(0,30,14,1) }
+			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,30,14,1) }
 },
 		{|swayInstance|
-	{ swayInstance.amplitude.kr(1,0).linlin(0,30,1,14) }
+			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,30,1,14) }
 },
 		spec: ControlSpec(1,14,\lin,0.01)
 	);

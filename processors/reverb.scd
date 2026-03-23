@@ -24,28 +24,29 @@
 	sway.addModulator("Density -> Mix", \rvmix, [\reverb, \waveloss],
 		{|swayInstance|
 			{
-				swayInstance.density.kr(1,0).linlin(0,6,0.5,1) }
+				|lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,0.5,1) }
 }, {|swayInstance|
 	{
-				swayInstance.density.kr(1,0).linlin(0,6,1.0,0.5) }
+				|lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,1.0,0.5) }
 },
 		spec: ControlSpec(0.5,1,\lin,0.01)
 	);
 
 sway.addModulator("Amp -> Size", \rvsize, [\reverb, \waveloss],
 		{|swayInstance|
-	{ swayInstance.amplitude.kr(1,1).linlin(0,30,0.3,1) }
+	{ |lag=30| swayInstance.amplitude.kr(1,0).linlin(0,30,0.3,1) }
 }, {|swayInstance|
-	{ swayInstance.amplitude.kr(1,1).linlin(0,30,0.9,0.7) }
+	{ |lag=30| swayInstance.amplitude.kr(1,0).linlin(0,30,0.9,0.7) }
 },
+		lagTime: 30,
 		spec: ControlSpec(0,1,\lin,0.01)
 	);
 
 sway.addModulator("Clarity -> HF Damp", \rvdamp, [\reverb, \waveloss],
 		{|swayInstance|
-	{ swayInstance.clarity.kr(1,0).linlin(0,1,1,0) }
+			{ |lag=0| swayInstance.clarity.kr(1,0).lag(lag).linlin(0,1,1,0) }
 }, {|swayInstance|
-	{ swayInstance.clarity.kr(1,0).linlin(0,1,0.2,1) }
+			{ |lag=0| swayInstance.clarity.kr(1,0).lag(lag).linlin(0,1,0.2,1) }
 },
 		spec: ControlSpec(0,1,\lin,0.01)
 	);

@@ -1,13 +1,15 @@
 //Static Spatializer for Sway
 
 ~swayInstances.do({|sway, n|
-sway.addSpatializer("Static", \static, {|swayInstance|
-	{
-		//var rate = swayInstance.density.kr(1,0).lag(15).linlin(0,6,0.1,8);
-		var out = DC.kr(0!2);
-		out;
-	}
-});
+	sway.addSpatializer("Static", \static, {|swayInstance|
+		{
+			|x=0, y=3|
+			var out, xP;
+			xP = swayInstance.xPosition;
+			out = BeamFormer.arFocal(swayInstance.output.ar(1,0),x+xP,y, numSpeakers: swayInstance.array.numSpeakers);
+			out;
+		}
+	});
 });
 
 ("Static Spatializer Added").postln;

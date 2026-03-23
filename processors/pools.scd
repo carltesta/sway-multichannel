@@ -32,27 +32,29 @@
 ~swayInstances.do({|sway, n|
 sway.addModulator("Clarity -> Shimmer Amount", \plshimmer, \pools,
 		{|swayInstance|
-			{ swayInstance.clarity.kr(1,0).lag(30).linlin(0,1,0,1) }
+			{ |lag=30| swayInstance.clarity.kr(1,0).lag(lag).linlin(0,1,0,1) }
 }, {|swayInstance|
-			{ swayInstance.clarity.kr(1,0).lag(30).linlin(0,1,1,0) }
+			{ |lag=30| swayInstance.clarity.kr(1,0).lag(lag).linlin(0,1,1,0) }
 },
+		lagTime: 30,
 		spec: ControlSpec(0,1,\lin,0.01)
 	);
 
 sway.addModulator("Density -> Reverb Level", \plverb, \pools,
 		{|swayInstance|
-			{ swayInstance.density.kr(1,0).lag(30).linlin(0,6,0,1) }
+			{ |lag=30| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,0,1) }
 }, {|swayInstance|
-			{ swayInstance.density.kr(1,0).lag(30).linlin(0,6,1,0) }
+			{ |lag=30| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,1,0) }
 },
+		lagTime: 30,
 		spec: ControlSpec(0,1,\lin,0.01)
 	);
 
 	sway.addModulator("Amp -> Dry Level", \plamp, \pools,
 		{|swayInstance|
-			{ swayInstance.amplitude.kr(1,0).linlin(0,10,0.1,0.5) }
+			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,10,0.1,0.5) }
 }, {|swayInstance|
-			{ swayInstance.amplitude.kr(1,0).linlin(0,10,0.5,0.1) }
+			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,10,0.5,0.1) }
 },
 		spec: ControlSpec(0,1,\lin,0.01)
 	);

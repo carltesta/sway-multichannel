@@ -25,18 +25,18 @@
 ~swayInstances.do({|sway, n|
 	sway.addModulator("Density -> Waves to Drop", \wldrop, \waveloss,
 		{|swayInstance|
-	{ swayInstance.density.kr(1,0).linexp(0,6,1,35) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,1,35) }
 }, {|swayInstance|
-	{ swayInstance.density.kr(1,0).linexp(0,6,35,1) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,35,1) }
 },
 		spec: ControlSpec(1,35,\lin,0.01)
 	);
 
 sway.addModulator("Density -> Drop Size", \wloutof, \waveloss,
 		{|swayInstance|
-			{ swayInstance.density.kr(1,0).linlin(0,6,10,40) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,10,40) }
 }, {|swayInstance|
-			{ swayInstance.density.kr(1,0).linlin(0,6,40,10) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,40,10) }
 },
 		spec: ControlSpec(10,40,\lin,0.01)
 	);
