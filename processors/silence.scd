@@ -6,7 +6,7 @@ sway.addProcessor("Silence", \silence, {|swayInstance|
 		var out = Silent.ar(swayInstance.numChan);
 		out;
 	}
-});
+},fadeTime: sway.fade);
 });
 
 //Server.default.sync;

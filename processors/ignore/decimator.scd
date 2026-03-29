@@ -1,5 +1,5 @@
 //Smooth Decimator Processor for Sway
-
+/*
 
 //SmoothDecimator
 
@@ -45,3 +45,4 @@ sway.addModulator("Density -> Sample Rate", \decsamplerate, \decimator,
 });
 
 ("Decimator Processor Added").postln;
+*/

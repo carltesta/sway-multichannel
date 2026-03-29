@@ -19,7 +19,7 @@ sway.addProcessor("Delay", \delay, {|swayInstance|
 			LocalOut.ar(delay * feedback);
 			delay;
 	}
-});
+},fadeTime: sway.fade);
 });
 
 //control mapping:
@@ -30,10 +30,10 @@ sway.addProcessor("Delay", \delay, {|swayInstance|
 ~swayInstances.do({|sway, n|
 sway.addModulator("Density -> Delay Time", \delaytime, \delay,
 		{|swayInstance|
-		{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,3,0.5,9)}
+		{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,20,0.5,9)}
 },
 	{|swayInstance|
-		{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,3,9,0.5) }
+		{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,20,9,0.5) }
 },
 		spec: ControlSpec(0.5,9,\lin,0.01),
 
@@ -41,20 +41,20 @@ sway.addModulator("Density -> Delay Time", \delaytime, \delay,
 
 sway.addModulator("Density -> Feedback", \delayfeedback, \delay,
 		{|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,4,0.5,0.05) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,20,0.3,0.05) }
 },
 {|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,4,0.05,0.5) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,20,0.05,0.3) }
 },
 		spec: ControlSpec(0.05,0.5,\lin,0.01)
 	);
 
 sway.addModulator("Density -> Source Vol", \delaysourcevol, \delay,
 		{|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,3,0.7,1) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,30,0.7,1) }
 },
 {|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,3,1,0.7) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,30,1,0.7) }
 },
 		spec: ControlSpec(0.1,0.7,\lin,0.01)
 	);

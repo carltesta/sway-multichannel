@@ -8,7 +8,7 @@
 		var out = RLPF.ar(swayInstance.input.ar(1), filtfreq.kr(1), filtrq.kr(1)).tanh;
 		out;
 	}
-});
+},fadeTime: sway.fade);
 });
 
 //control mapping:
@@ -17,20 +17,20 @@
 ~swayInstances.do({|sway, n|
 	sway.addModulator("Density -> Filter Freq", \filtfreq, \filter,
 		{|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,500,5000) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,20,500,5000) }
 }, {|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,5000,5) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,20,5000,500) }
 },
 		spec: ControlSpec(500,5000,\exp,0.01)
 	);
 
 sway.addModulator("Amp -> Filter RQ", \filtrq, \filter,
 		{|swayInstance|
-			{ swayInstance.amplitude.kr(1,0).lag(30).linlin(0,10,0.3,0.8) }
+			{ |lag=15|swayInstance.amplitude.kr(1,2).lag(lag).linlin(0,10,0.3,4.0) }
 }, {|swayInstance|
-			{ swayInstance.amplitude.kr(1,0).lag(30).linlin(0,10,0.9,0.3) }
-},
-		spec: ControlSpec(0.3,0.8,\lin,0.01)
+			{ |lag=15|swayInstance.amplitude.kr(1,2).lag(lag).linlin(0,10,4.0,0.3) }
+}, lagTime: 15,
+		spec: ControlSpec(0.3,4.0,\lin,0.01)
 	);
 });
 

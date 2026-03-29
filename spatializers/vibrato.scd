@@ -10,7 +10,7 @@
 			var out = BeamFormer.arFocal(swayInstance.output.ar(1,0),(x+xP+line),y, numSpeakers: swayInstance.array.numSpeakers);
 			out;
 		}
-	});
+	},fadeTime: sway.fade);
 });
 
 ("Vibrato Spatializer Added").postln;

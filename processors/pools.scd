@@ -22,7 +22,7 @@
 			mix = Mix.ar([dry * plamp.kr(1), wet * plverb.kr(1)]);
 			Mix.ar(mix);
 	}
-});
+},fadeTime: sway.fade);
 });
 
 //control mapping:
@@ -42,9 +42,9 @@ sway.addModulator("Clarity -> Shimmer Amount", \plshimmer, \pools,
 
 sway.addModulator("Density -> Reverb Level", \plverb, \pools,
 		{|swayInstance|
-			{ |lag=30| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,0,1) }
+			{ |lag=30| swayInstance.density.kr(1,0).lag(lag).linlin(0,15,0,1) }
 }, {|swayInstance|
-			{ |lag=30| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,1,0) }
+			{ |lag=30| swayInstance.density.kr(1,0).lag(lag).linlin(0,15,1,0) }
 },
 		lagTime: 30,
 		spec: ControlSpec(0,1,\lin,0.01)
@@ -52,9 +52,9 @@ sway.addModulator("Density -> Reverb Level", \plverb, \pools,
 
 	sway.addModulator("Amp -> Dry Level", \plamp, \pools,
 		{|swayInstance|
-			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,10,0.1,0.5) }
+			{ |lag=0| swayInstance.amplitude.kr(1,2).lag(lag).linlin(0,10,0.1,0.5) }
 }, {|swayInstance|
-			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,10,0.5,0.1) }
+			{ |lag=0| swayInstance.amplitude.kr(1,2).lag(lag).linlin(0,10,0.5,0.1) }
 },
 		spec: ControlSpec(0,1,\lin,0.01)
 	);

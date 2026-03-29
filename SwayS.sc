@@ -11,11 +11,11 @@ I need to learn how to create spatializer patterns via code
 
 SwayS {
 
-	var <>name, <>channel=0, <>numChan, <>input, <>dry, <>analysis_input, <>buffer, <>processing, <>recorder, <>delaybuffer, <>beamformer, <>stereomix, <>refresh_rate=1, <>fade=30, <>output, <polarity=false,
-	<>density, <>clarity, <>amplitude, <>tempo, <>gridanalysis, <>xbus, <>ybus, <>ampThreshBus, <>ampThresh=0.01,
-	<current_processing, <current_processingKey=\silence, <>processors, <>modulators, <current_spatializer, <current_spatializerKey=\static, <>spatializers, <>changeSpatializationView, <>analysisView, <>changeProcessingView, <>modulatorView, <>gridView, <>quadrantHistory, <>processorHistory, <>timeHistory, <quadrant=nil, <>loopQuadrantRead=true, <>quadrantReadTime=10,
+	var <>name, <>channel=0, <>numChan, <>input, <>dry, <>analysis_input, <>buffer, <>processing, <>recorder, <>delaybuffer, <>beamformer, <>stereomix, <>refresh_rate=1, <>fade=30, <>output, <>polarity=false,
+	<>density, <>clarity, <>amplitude, <>tempo, <>gridanalysis, <>xbus, <>ybus, <>ampThreshBus, <>ampThresh=0.01, <>clarityThresh=0.5, <>densityThresh=0.5,
+	<current_processing, <current_processingKey=\silence, <>processors, <>modulators, <current_spatializer, <current_spatializerKey=\static, <>spatializers, <>audioView, <>changeSpatializationView, <>analysisView, <>changeProcessingView, <>modulatorView, <>gridView, <>quadrantHistory, <>processorHistory, <>timeHistory, spatializerHistory, <quadrant=nil, <>loopQuadrantRead=true, <>quadrantReadTime=10, <>amplitudeControl=false,
 	<>quadrantProcessingThresholds,
-	<quadrantProcessors, <array, <xPosition, <yPosition, <angle=nil, <>numSpeakers=64, <>speakerSpacing=0.07, <>speedOfSound=343;
+	<>quadrantProcessors, <>quadrantSpatializers, <array, <xPosition, <yPosition, <angle=nil, <>numSpeakers=64, <>speakerSpacing=0.07, <>speedOfSound=343, <>settings;
 
 	new {
 		this.init;
@@ -25,7 +25,8 @@ SwayS {
 		|givenName="sway",chan=0,numChannels=1|
 
 		quadrantProcessingThresholds = Array.fill(4, 100/quadrantReadTime);
-		quadrantProcessors = Array.newClear(4);
+		quadrantProcessors = Array.fill(4, \silence);
+		quadrantSpatializers = Array.fill(4, \static);
 
 		//assign name of channel
 		name = givenName;
@@ -35,6 +36,7 @@ SwayS {
 		//histories
 		quadrantHistory = List.new;
 		processorHistory = List.new;
+		spatializerHistory = List.new;
 		timeHistory = List.new;
 
 		//audio input
@@ -64,12 +66,12 @@ SwayS {
 		Server.default.sync;
 		//processing
 
-		processing = NodeProxy.audio(Server.default, numChan).fadeTime_(fade)
+		processing = NodeProxy.audio(Server.default, numChan).reshaping_(\elastic).fadeTime_(fade)
 		.source = { Silent.ar(1) }; //start with silent processing
 
 		//output
 
-		output = NodeProxy.audio(Server.default, numChan).fadeTime_(fade)
+		output = NodeProxy.audio(Server.default, numChan).reshaping_(\elastic).fadeTime_(fade)
 		.source = { |volume=1| processing.ar(1)*volume };
 
 		//busses for cartesian coordinate system
@@ -90,10 +92,10 @@ SwayS {
 		//dry output (set to be asleep at first, won't start until needed)
 		dry = NodeProxy.audio(Server.default, numSpeakers).source_({
 			|drymix=0|
-		BeamFormer.arFocal(input.ar(numChan), x: xPosition, y: yPosition, amp: drymix, numSpeakers: numSpeakers);
+			BeamFormer.arFocal(input.ar(numChan), x: xPosition, y: yPosition, amp: drymix, numSpeakers: numSpeakers);
 		});
 
-		stereomix = NodeProxy.audio(Server.default, 2).fadeTime_(fade);
+		//stereomix = NodeProxy.audio(Server.default, 2).fadeTime_(fade);
 		//.source = { |in| Splay.ar(in, 1, 1/64) };
 
 		//build analysis on start
@@ -114,19 +116,23 @@ SwayS {
     */////////////
 
 	audioGUI { |window|
-		var flow, audioView, outVolView, outVolNum, stereoMix, dryVolView, dryVolNum, dryVolStart, ampThreshView, ampThreshSlider, ampThreshIndicator, layout,
+		var flow, outVolView, outVolNum, stereoMix, dryVolView, dryVolNum, dryVolStart, ampThreshView, ampThreshSlider, ampThreshIndicator, ampControlButton, layout,
 		lineHeight = 25, labelWidth = 150, valueWidth = 100;
 
-		audioView = View.new(window, (labelWidth+valueWidth+20+(valueWidth/3)*2)@(lineHeight*4));
+		audioView = View.new(window, (labelWidth+valueWidth+20+(valueWidth/3)*2)@(lineHeight*5));
 		flow = audioView.addFlowLayout();
 		StaticText(audioView, Rect(10,10,labelWidth, lineHeight)).string_("Out Vol");
 		outVolView = Slider(audioView, Rect(10,10,valueWidth, lineHeight)).action_({
 			this.output.set(\volume, outVolView.value);
 			outVolNum.value_(outVolView.value.ampdb)});
 		outVolNum = NumberBox(audioView, Rect(10,10,valueWidth/3,lineHeight)).value_(outVolView.value.ampdb).action_({|box|outVolView.value_(box.value.dbamp)});
+
+		/*
 		stereoMix = Button(audioView, Rect(10,10,lineHeight,lineHeight));
 			stereoMix.states_([["Off", Color.black, Color.red],["On", Color.black, Color.green]]);
-			stereoMix.action_({|button| if(button.value==1, {beamformer.stop; stereomix.play; beamformer<>>stereomix;},{stereomix.stop;beamformer.play;})});
+		stereoMix.action_({|button| if(button.value==1, {stereomix.source_({|in| Splay.ar(In.ar(beamformer.ar(64,0),numSpeakers),level: 1/64)});beamformer.stop; stereomix.play;},{stereomix.stop;beamformer.play;})});
+		*/
+
 		flow.nextLine;
 		StaticText(audioView, Rect(10,10,labelWidth, lineHeight)).string_("Dry Vol");
 		dryVolView = Slider(audioView, Rect(10,10,valueWidth, lineHeight)).action_({
@@ -135,16 +141,16 @@ SwayS {
 			dryVolNum.value_(dryVolView.value.ampdb)});
 		dryVolNum = NumberBox(audioView, Rect(10,10,valueWidth/3,lineHeight)).value_(dryVolView.value.ampdb).action_({|box|dryVolView.value_(box.value.dbamp)});
 		dryVolStart = Button(audioView, Rect(10,10,lineHeight,lineHeight));
-			dryVolStart.states_([["Play", Color.black, Color.red],["Stop", Color.black, Color.green]]);
-			dryVolStart.action_({|button| if(button.value==1, {dry.play},{dry.stop})});
+		dryVolStart.states_([["Play", Color.black, Color.red],["Stop", Color.black, Color.green]]);
+		dryVolStart.action_({|button| if(button.value==1, {dry.play},{dry.stop})});
 		flow.nextLine;
 		StaticText(audioView, Rect(10,10,labelWidth,lineHeight)).string_("Amp Thresh");
 
-		ampThreshView = NumberBox(audioView,Rect(10,10,valueWidth/3,lineHeight)).value_(this.ampThresh).action_({|box|
+		ampThreshView = NumberBox(audioView,Rect(10,10,valueWidth/3,lineHeight)).decimals_(4).step_(0.0001).value_(this.ampThresh).action_({|box|
 			this.ampThresh=box.value;
-			ampThreshSlider.value(box.value)});
+			ampThreshSlider.valueAction = box.value});
 
-		ampThreshSlider = Slider(audioView, Rect(10,10,valueWidth,lineHeight)).value_(this.ampThresh).action_({|slider|
+		ampThreshSlider = Slider(audioView, Rect(10,10,valueWidth,lineHeight)).step_(0.0001).value_(this.ampThresh).action_({|slider|
 			ampThreshView.value_(slider.value);
 			this.ampThresh = slider.value;
 			this.amplitude.set(\ampThresh, (slider.value).ampdb);
@@ -152,19 +158,39 @@ SwayS {
 
 		ampThreshIndicator = StaticText(audioView,Rect(10,10,lineHeight,lineHeight)).string_("<").background_(Color.red).stringColor_(Color.black).align_(\center);
 
+		flow.nextLine;
+		StaticText(audioView, Rect(10,10,labelWidth, lineHeight)).string_("Amp Control");
+		ampControlButton = Button(audioView, Rect(10,10,lineHeight, lineHeight));
+		ampControlButton.states_([["Off", Color.black, Color.red],["On", Color.black,Color.green]]);
+		ampControlButton.action_({|button| if(button.value==1, {amplitudeControl=true}, {amplitudeControl=false})});
+		ampControlButton.valueAction_(1);
+
 		OSCdef(("c"++channel.asString++"ampAboveThresh"++"OSC").asSymbol, {|msg|
-			if(msg[3]==1,{	defer{ampThreshIndicator.string_(">").background_(Color.green)};
+			if(msg[3]>0,{	defer{ampThreshIndicator.string_(">").background_(Color.green)};
+
+				amplitudeControl.if({
+				defer{this.runProcessor(this.quadrantProcessors[this.quadrantHistory[0]+1])};
 				//("channel: "++channel++"aboveThresh").postln;
 				//msg.postln;
+				});
 			},
 			{
 				defer{ampThreshIndicator.string_("<").background_(Color.red)};
-				//defer{this.runProcessor(\silence)};
+				amplitudeControl.if({
+				defer{this.runProcessor(\silence)};
 				//("channel: "++channel++"belowThresh").postln;
 				//msg.postln;
+				});
 			});
 		},
 		("/"++channel++"/aboveThresh/").asSymbol);
+
+		OSCdef(("c"++channel.asString++"isAtZero"++"OSC").asSymbol, {|msg|
+			if(this.current_processingKey!==\silence,{
+				//defer({this.runProcessor(\silence)});
+				//"Processing Silenced because at Zero".postln;
+			});
+		}, ("/"++channel++"/isAtZero/").asSymbol);
 
 		audioView = Dictionary[
 			\view -> audioView,
@@ -175,7 +201,8 @@ SwayS {
 			\dryVolButton -> dryVolStart,
 			\ampThreshView -> ampThreshView,
 			\ampThreshSlider -> ampThreshSlider,
-			\ampThreshIndicator -> ampThreshIndicator
+			\ampThreshIndicator -> ampThreshIndicator,
+			\ampControlButton -> ampControlButton
 		];
 		^audioView;
 
@@ -191,67 +218,63 @@ SwayS {
 	build_analysis {
 
 		density = NodeProxy.control(Server.default, 1)
-		.source = {
-			//Density Tracker
-			var buf = LocalBuf.new(512,1);
-			var onsets = Onsets.kr(FFT(buf, analysis_input.ar(1)));
-			var shortStats = OnsetStatistics.kr(onsets, 1);
-			//var longStats = OnsetStatistics.kr(onsets, long_win);
-			var shortValue = (shortStats[0]/1);
-			//var longValue = (longStats[0]/long_win);
-			//[shortValue, longValue];
-			SendReply.kr(Impulse.kr(1), ("/"++channel++"/density/").asSymbol, shortValue);
-			shortValue;
+		.source = {|window=5|
+			var chain = FFT(LocalBuf(512), analysis_input.ar(1));
+			var onsetTrigger = Onsets.kr(chain);
+			var density = OnsetStatistics.kr(onsetTrigger, window);
+			SendReply.kr(onsetTrigger + Impulse.kr(1/window), ("/"++channel++"/density/").asSymbol, density);
+			density;
 		};
 
-		amplitude = NodeProxy.control(Server.default, 1)
-		.source = { |ampThresh=(36.neg)|
+		amplitude = NodeProxy.control(Server.default, 3)
+		.source = { |ampThresh = -40|
 			//Amplitude Tracker
-			//FluidAmpFeature.ar(analysis_input.ar(1))
+			var amplitude = Lag.kr(Amplitude.kr(analysis_input.ar(1)), 5);
+			var isAboveThresh = amplitude > (ampThresh.dbamp);
+			var isAtZero = amplitude < (0.001.dbamp);
+			var smoothedThresh = EnvGen.kr(Env([0, 1, 1, 0], [0.01, 0, 30], [4, -4], releaseNode: 2), isAboveThresh);
 			var chain = FFT(LocalBuf(1024), analysis_input.ar(1));
 			var loudness = Loudness.kr(chain);
-
-			var wamp = WAmp.kr(analysis_input.ar(1), 5);
-			//var shortAverage = AverageOutput.kr(loudness, Impulse.kr(short_win.reciprocal));
-			//var longAverage = AverageOutput.kr(loudness, Impulse.kr(long_win.reciprocal));
-			//[shortAverage, longAverage];
-			var aboveThresh = FluidAmpGate.ar(analysis_input.ar(1), 10, SampleRate.ir*3, ampThresh, -90, SampleRate.ir*10, SampleRate.ir*1, 1, 1);
-			SendReply.kr(Impulse.kr(1), ("/"++channel++"/amplitude/").asSymbol, wamp);
-			SendReply.kr(Impulse.kr(1), ("/"++channel++"/aboveThresh/").asSymbol, aboveThresh);
-			loudness;
+			var shortAverage = AverageOutput.kr(loudness, Impulse.kr(1/5));
+			SendReply.kr(Impulse.kr(1/5), ("/"++channel++"/isAtZero/").asSymbol, isAtZero);
+			SendReply.kr(Impulse.kr(5), ("/"++channel++"/amplitude/").asSymbol, amplitude);
+			SendReply.kr(Impulse.kr(1/5), ("/"++channel++"/aboveThresh/").asSymbol, smoothedThresh);
+			[amplitude, isAboveThresh, shortAverage];
 		};
 
 		clarity = NodeProxy.control(Server.default, 1)
 		.source = {
-			var freq, hasFreq, shortAverage, longAverage;
-			//Pitch hasfreq Tracker
+			var freq, hasFreq, latch;
 			# freq, hasFreq = Tartini.kr(analysis_input.ar(1));
-			//shortAverage = AverageOutput.kr(hasFreq,Impulse.kr(1));
-			//longAverage = AverageOutput.kr(hasFreq,Impulse.kr(long_win.reciprocal));
-			//[shortAverage, longAverage];
-			//shortAverage;
-			SendReply.kr(Impulse.kr(1), ("/"++channel++"/clarity/").asSymbol, hasFreq);
-			hasFreq;
+			latch = Latch.kr(hasFreq, Impulse.kr(1/5));//latch every 5 seconds
+			SendReply.kr(Impulse.kr(1), ("/"++channel++"/clarity/").asSymbol, latch);
+			[hasFreq, latch];
 		};
 
-		tempo = NodeProxy.control(Server.default, 1)
-		.source = {
+		/*
+		tempo = NodeProxy.control(Server.default, 4)
+		.source = { |lock=0|
 			//add some variation of BeatTrack here
+			var buf = LocalBuf.new(1024,1);
+			var fft = FFT(buf, analysis_input.ar(1));
+			BeatTrack.kr(fft, lock);//
 		};
+		*/
 
 		gridanalysis = NodeProxy.control(Server.default, 3)
 		.source = {
 			|lag=30, densityWarp = 0, clarityWarp = 0, ampWarp = 0|
 			var d = this.density.kr(1,0).lag(lag),
-			c = this.clarity.kr(1,0).lag(lag);
+			c = this.clarity.kr(1,1).lag(lag), //take latch output for grid
+			a = this.amplitude.kr(1,0).lag(lag);
 
 			// scale these to 0 - 1 and curve
-			c = c.clip.lincurve(0, 1, 0, 1, clarityWarp);
+			c = c.lincurve(0, 1, 0, 1, clarityWarp);
 			//a = (a / 40).clip.lincurve(0, 1, 0, 1, ampWarp);
-			d = (d / 6).clip.lincurve(0, 1, 0, 1, densityWarp);
+			d = d.lincurve(0, 22, 0, 1, densityWarp);
 
-			SendReply.kr(Impulse.kr(1), ("/"++channel++"/x/").asSymbol, c);
-			SendReply.kr(Impulse.kr(1), ("/"++channel++"/y/").asSymbol, d);
+			SendReply.kr(Impulse.kr(5), ("/"++channel++"/x/").asSymbol, c);
+			SendReply.kr(Impulse.kr(5), ("/"++channel++"/y/").asSymbol, d);
 
 			Out.kr(xbus, c);
 			Out.kr(ybus, d);
@@ -263,16 +286,19 @@ SwayS {
 	}
 
 	analysisGUI { |window|
-		var flow, processingView, densityView, clarityView, ampView, xView, yView, lagView, layout,
+		var flow, processingView, spatializationView, densityView, clarityView, ampView, xView, yView, lagView, xThreshView, yThreshView, layout,
 		lineHeight = 25, labelWidth = 150, valueWidth = 100;
 
-		analysisView = View.new(window, (labelWidth+valueWidth+20+(valueWidth/3))@(lineHeight*9.5));//If you need more vertical space adjust that here
+		analysisView = View.new(window, (labelWidth+valueWidth+20+(valueWidth/3))@(lineHeight*10.5));//If you need more vertical space adjust that here
 		flow = analysisView.addFlowLayout();
 		StaticText(analysisView, Rect(10,10,labelWidth,lineHeight))
 		.string_(("Channel "++((this.name.asInteger)))).align_(\left);
 		flow.nextLine;
 		StaticText(analysisView, labelWidth@lineHeight).string_("processing: ").align_(\right);
 		processingView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
+		flow.nextLine;
+		StaticText(analysisView, labelWidth@lineHeight).string_("spatialization: ").align_(\right);
+		spatializationView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
 		flow.nextLine;
 		StaticText(analysisView, labelWidth@lineHeight).string_("density: ").align_(\right);
 		densityView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
@@ -282,10 +308,20 @@ SwayS {
 		flow.nextLine;
 		StaticText(analysisView, labelWidth@lineHeight).string_("amp: ").align_(\right);
 		ampView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
-		StaticText(analysisView, labelWidth@lineHeight).string_("X: ").align_(\right);
-		xView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
-		StaticText(analysisView, labelWidth@lineHeight).string_("Y: ").align_(\right);
-		yView = TextField(analysisView, Rect(10,10,valueWidth,lineHeight)).string_("");
+
+		StaticText(analysisView, (labelWidth/2)@lineHeight).string_("Clarity Threshold: ").align_(\right);
+		xThreshView = NumberBox(analysisView, Rect(10,10,(valueWidth/2),lineHeight)).value_(0.5).clipLo_(0).clipHi_(1.0);
+		xThreshView.action_({|numb| clarityThresh=numb.value; gridanalysis.set(\clarityWarp, this.calcMidCurve(numb.value))});
+
+		StaticText(analysisView, (labelWidth/2)@lineHeight).string_("X: ").align_(\right);
+		xView = TextField(analysisView, Rect(10,10,(valueWidth/2),lineHeight)).string_("");
+
+		StaticText(analysisView, (labelWidth/2)@lineHeight).string_("Density Threshold: ").align_(\right);
+		yThreshView = NumberBox(analysisView, Rect(10,10,(valueWidth/2),lineHeight)).value_(11).clipLo_(0).clipHi_(22);
+		yThreshView.action_({|numb| densityThresh=numb.value; gridanalysis.set(\densityWarp, this.calcMidCurve((numb.value).linlin(0,22,0,1)))});
+		StaticText(analysisView, (labelWidth/2)@lineHeight).string_("Y: ").align_(\right);
+		yView = TextField(analysisView, Rect(10,10,(valueWidth/2),lineHeight)).string_("");
+
 		StaticText(analysisView, labelWidth@lineHeight).string_("Grid Lag Set").align_(\right);
 		lagView = NumberBox(analysisView, Rect(10,10,valueWidth,lineHeight)).value_(30)
 		.action_({|val| gridanalysis.set(\lag, val)});
@@ -303,20 +339,20 @@ SwayS {
 
 		OSCdef(("c"++channel.asString++"amplitude"++"OSC").asSymbol, {|msg|
 			defer({
-				ampView.value = msg[3].round(0.01);
+				ampView.value = msg[3].round(0.0001);
 			})
 		}, ("/"++channel++"/amplitude/").asSymbol);
 
 		OSCdef(("c"++channel.asString++"xcoord"++"OSC").asSymbol, {|msg|
 			defer({
-				xView.value = msg[3].round(0.01);
+				xView.value = msg[3].round(0.001);
 				//msg.postln;
 			})
 		}, ("/"++channel++"/x/").asSymbol);
 
 		OSCdef(("c"++channel.asString++"ycoord"++"OSC").asSymbol, {|msg|
 			defer({
-				yView.value = msg[3].round(0.01);
+				yView.value = msg[3].round(0.001);
 			})
 		}, ("/"++channel++"/y/").asSymbol);
 		/*layout = VLayout([
@@ -338,6 +374,7 @@ SwayS {
 		analysisView = Dictionary[
 			\view -> analysisView,
 			\processing -> processingView,
+			\spatialization -> spatializationView,
 			\density -> densityView,
 			\clarity -> clarityView,
 			\amp -> ampView,
@@ -374,13 +411,19 @@ SwayS {
 		var processor = this.processors[key];
 
 		(processor.isNil.not).if({
-			//processing.source.fadeTime = processor[\fadeTime];
+
+			processing.fadeTime = processor[\fadeTime];
 			processing.source = processor[\func].value(this);
 			(this.name++": " ++ "Processing is " ++ processor[\name]).postln;
 			current_processing = processor[\name];
 			current_processingKey = processor[\key];
+
+			//update the modulators (perhaps polarity has changed)
+			this.getAssocModulators(key).do({|key|
+				this.runModulator(key)
+			});
 		}, {
-			"Processor does not exist".postln;
+			//"Processor does not exist".postln;
 		});
 
 		(this.modulatorView.isNil.not).if({
@@ -411,10 +454,12 @@ SwayS {
 		popUp.items_(this.processors.keys.asArray.sort);
 		popUp.action_({|menu,item|
 			this.runProcessor(menu.item.asSymbol);
+			this.quadrantProcessors=Array.fill(4, menu.item.asSymbol);
+			this.audioView[\ampControlButton].valueAction_(0);//set the amp control to false because it is assumed you want direct control if you are changing the processing
 		});
 		items = this.processors.values.collect({|val| val[\key] }).asArray.sort;
 		index = items.indexOf(\silence);
-		popUp.valueAction_(index);
+		popUp.value_(index);
 		//.items(this.processors.keys.asArray);
 		//popUp.action({|menu| [menu.value,menu.item].postln;});
 
@@ -444,13 +489,13 @@ SwayS {
 		^this.modulators[key][\node];
 	}
 
-	addModulator {|name, key, assocProc, func, reversePolarityFunc, lagTime=0, fadeTime=1, spec|
+	addModulator {|name, key, assocProc, func, reversePolarityFunc, lagTime=0, fadeTime=15, spec|
 		(this.modulators.isNil).if({
 			modulators = Dictionary.new;
 		});
 		(this.modulators[key].isNil.not).if({
-			this.modulators.removeAt(key);
 			this.modulators[key][\tracker].clear;
+			this.modulators.removeAt(key);
 			("removed "++key++" from modulators").postln;
 		});
 		this.modulators.put(key, Dictionary[
@@ -477,7 +522,7 @@ SwayS {
 		funcKey = (this.polarity).if({ \reversePolarityFunc }, { \func });
 
 		(modulator.isNil.not).if({
-			//node.source.fadeTime = modulator[\fadeTime];
+			node.fadeTime = modulator[\fadeTime];
 			node.source = modulator[funcKey].value(this);
 			this.modulators[key] = modulator;
 			// (this.name++": " ++ modulator[\name]).postln;
@@ -523,9 +568,9 @@ SwayS {
 		StaticText(modulatorView, Rect(0,0,labelWidth, lineHeight))
 		.string_((this.current_processing++" Mods"));
 		StaticText(modulatorView, Rect(0,0,valueWidth,lineHeight))
-			.string_("");
-	StaticText(modulatorView, Rect(0,0,valueWidth/3,lineHeight))
-			.string_("");
+		.string_("");
+		StaticText(modulatorView, Rect(0,0,valueWidth/3,lineHeight))
+		.string_("");
 		StaticText(modulatorView, Rect(0,0,valueWidth/3,lineHeight))
 		.string_("Lag");
 		modulatorView.decorator.nextLine;
@@ -553,9 +598,16 @@ SwayS {
 				(key++" node lagtime set to "++box.value).postln;
 			};
 		});
-			modulatorView.decorator.nextLine;
+		modulatorView.decorator.nextLine;
 		^modulatorView;
 
+	}
+
+	setPolarity { |pol=true|
+		polarity=pol;
+		this.getAssocModulators(current_processingKey).do({|key|
+			this.runModulator(key);
+		});
 	}
 
 	/*/////////////////////////////////////////
@@ -571,7 +623,7 @@ SwayS {
 		len = array.arrayLength*0.95;
 		num = SwayConductor.numPlayers;
 		xPos = Array.fill(num, { |i|
-		(i - ((num - 1) / 2)) * (len / (num - 1))
+			(i - ((num - 1) / 2)) * (len / (num - 1))
 		}); //evenly spread the players across the array
 		^xPos;
 	}
@@ -597,14 +649,26 @@ SwayS {
 		var spatializer = this.spatializers[key];
 
 		(spatializer.isNil.not).if({
-			//processing.source.fadeTime = processor[\fadeTime];
+			beamformer.fadeTime = spatializer[\fadeTime];
 			beamformer.source = spatializer[\func].value(this);
 			(this.name++": " ++ "Spatializer is: " ++ spatializer[\name]).postln;
 			current_spatializer = spatializer[\name];
 			current_spatializerKey = spatializer[\key];
+
+			//update the modulators (perhaps polarity has changed)
+			//this.getAssocModulators(key).do({|key|
+			//	this.runModulator(key)
 		}, {
 			"Spatializer does not exist".postln;
-		})
+		});
+
+		(this.modulatorView.isNil.not).if({
+			this.modulatorGUI;
+		});
+
+		(this.analysisView.isNil.not).if({
+			this.analysisView[\spatialization].string_(this.current_spatializer);
+		});
 	}
 
 	refreshSpatializerView {
@@ -614,6 +678,12 @@ SwayS {
 		this.changeSpatializationView[\menu]
 		.items_(items)
 		.value_(index);
+	}
+
+	assignSpatializerToQuadrant {|key, quadrant|
+		// key can be a symbol or an array of symbols;
+		// i.e., [\static, \multi, \random, \vibrato]
+		this.quadrantSpatializers[quadrant - 1] = key;
 	}
 
 	spatializationGUI { |window|
@@ -629,6 +699,7 @@ SwayS {
 		popUp.items_(this.spatializers.keys.asArray.sort);
 		popUp.action_({|menu,item|
 			this.runSpatializer(menu.item.asSymbol);
+			this.quadrantSpatializers=Array.fill(4, menu.item.asSymbol);
 		});
 		items = this.spatializers.values.collect({|val| val[\key] }).asArray.sort;
 		index = items.indexOf(\static);
@@ -642,6 +713,13 @@ SwayS {
 		];
 		^changeSpatializationView;
 	}
+
+	/*////////////////////////////////
+
+	METHODS FOR MANAGING THE QUADRANTS
+
+	*////////////////////////////////
+
 
 	getQuadrant {|x,y|
 
@@ -679,9 +757,10 @@ SwayS {
 		}.fork(AppClock)
 	}
 
+	/*
 	assignQuadrant {|quadrant, processorKey|
 		this.quadrantProcessors;
-	}
+	}*/
 
 	quadrantAction {
 		var current = this.quadrantHistory[0],
@@ -696,6 +775,7 @@ SwayS {
 			// change processing
 			//right now the new assignment is just random and it can re-assign the same processing randomly
 			//* ADD Function to change the processing
+
 			// increase threshold
 			this.quadrantProcessingThresholds[current - 1] = threshold + (100 / this.quadrantReadTime);
 		}, {
@@ -707,11 +787,68 @@ SwayS {
 	}
 
 	saveHistory {
-	var file, path, history;
-	path = thisProcess.nowExecutingPath;
-	history = [timeHistory,quadrantHistory,processorHistory];
-	history.writeTextArchive((path++channel++"_history.txt").standardizePath);
-	("History saved to "++"C:/Users/Carl/Desktop/"++channel++"_history.txt").postln
+		var file, path, history;
+		path = thisProcess.nowExecutingPath;
+		history = [timeHistory,quadrantHistory,processorHistory];
+		history.writeTextArchive((path++channel++"_history.txt").standardizePath);
+		("History saved to "++"C:/Users/Carl/Desktop/"++channel++"_history.txt").postln;
+
+	}
+
+	//Maybe this is a better way to save the History?
+	/*
+	~swayInstances.do({|sway,n|
+
+	sway.processorHistory.writeArchive(("~/"++n++"_sway_processor_history.txt").standardizePath);
+
+	sway.timeHistory.writeArchive(("~/"++n++"_sway_time_history.txt").standardizePath);
+
+	sway.quadrantHistory.writeArchive(("~/"++n++"_sway_quadrant_history.txt").standardizePath);
+
+});
+	*/
+
+	captureSettings {
+		settings = ();
+		settings[\dryVol] = audioView[\dryVol].value;
+		settings[\outVol] = audioView[\outVol].value;
+		settings[\ampThresh] = audioView[\ampThreshView].value;
+		settings[\clarityThresh] = analysisView[\clarity].value;
+		settings[\densityThresh] = analysisView[\density].value;
+		settings[\gridLag] = analysisView[\lag].value;
+		Archive.global.put(("swaySettings"++channel).asSymbol, settings);
+	}
+
+	loadSettings {
+		settings = Archive.global.at(("swaySettings"++channel).asSymbol);
+		defer{audioView[\dryVol].valueAction_(settings[\dryVol])};
+		defer{audioView[\outVol].valueAction_(settings[\outVol])};
+		defer{audioView[\ampThreshView].valueAction_(settings[\ampThresh])};
+		defer{analysisView[\clarity].valueAction_(settings[\clarityThresh])};
+	    defer{analysisView[\density].valueAction_(settings[\densityThresh])};
+		defer{analysisView[\lag].valueAction_(settings[\gridLag])};
+	}
+
+	/*//////////////
+
+	HELPER FUNCTIONS
+
+	*///////////////
+
+	calcMidCurve {
+		|inX|
+		var lo = -20, hi = 20, mid, yVal, target=0.5;
+		20.do {
+			mid = (lo + hi) / 2;
+			yVal = inX.lincurve(0, 1, 0, 1, mid);
+
+			if (yVal > target) {
+				lo = mid;
+			} {
+				hi = mid;
+			};
+		};
+		^mid;
 	}
 
 	/*/////////////////
@@ -720,7 +857,7 @@ SwayS {
 
 	*//////////////////
 
-		gridGUI { |window|
+	gridGUI { |window|
 		var flow, gridWidth=400, gridHeight=400, layout;
 
 		gridView = EnvelopeView(window, gridWidth@gridHeight)

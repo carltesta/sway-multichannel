@@ -12,7 +12,7 @@ sway.addProcessor("Amplitude Modulation", \ampmod, {|swayInstance|
 		var am = out*sine;
 		am;
 	}
-});
+},fadeTime: sway.fade);
 });
 
 //Server.default.sync;
@@ -20,10 +20,10 @@ sway.addProcessor("Amplitude Modulation", \ampmod, {|swayInstance|
 ~swayInstances.do({|sway, n|
 sway.addModulator("Amp -> Rate", \amrate, \ampmod,
 		{|swayInstance|
-			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,30,14,1) }
+			{ |lag=0| swayInstance.amplitude.kr(1,2).lag(lag).linlin(0,30,1,14) }
 },
 		{|swayInstance|
-			{ |lag=0| swayInstance.amplitude.kr(1,0).lag(lag).linlin(0,30,1,14) }
+			{ |lag=0| swayInstance.amplitude.kr(1,2).lag(lag).linlin(0,30,14,1) }
 },
 		spec: ControlSpec(1,14,\lin,0.01)
 	);

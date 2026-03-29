@@ -9,7 +9,7 @@
 			out = BeamFormer.arFocal(swayInstance.output.ar(1,0),x+xP,y, numSpeakers: swayInstance.array.numSpeakers);
 			out;
 		}
-	});
+	},fadeTime: sway.fade);
 });
 
 ("Static Spatializer Added").postln;

@@ -16,7 +16,7 @@
 			reverb = FreeVerb.ar(in: waveloss, mix: rvmix.kr(1), room: rvsize.kr(1), damp: rvdamp.kr(1));
 			reverb*1.5;
 	}
-});
+},fadeTime: sway.fade);
 });
 
 //control mapping:
@@ -25,18 +25,18 @@
 ~swayInstances.do({|sway, n|
 	sway.addModulator("Density -> Waves to Drop", \wldrop, \waveloss,
 		{|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,1,35) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,15,1,35) }
 }, {|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,6,35,1) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linexp(0,15,35,1) }
 },
 		spec: ControlSpec(1,35,\lin,0.01)
 	);
 
 sway.addModulator("Density -> Drop Size", \wloutof, \waveloss,
 		{|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,10,40) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,15,10,40) }
 }, {|swayInstance|
-			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,6,40,10) }
+			{ |lag=0| swayInstance.density.kr(1,0).lag(lag).linlin(0,15,40,10) }
 },
 		spec: ControlSpec(10,40,\lin,0.01)
 	);
