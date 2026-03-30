@@ -1,14 +1,11 @@
 # Sway
 
-Interactive Live Processing Environment for any number of musicians. Run in SuperCollider. Requires Scott Carver's Singleton Quark.
+Interactive Live Processing Environment for any number of musicians. Run in SuperCollider.
 
 ---
 
 ## To Run
 
 ```
-//SwayConstructor(symbol of instance, number of channels);
-//i.e.
-SwayConstructor(\sway, 6)
-//This will generate the GUI and you can proceed to calibrate the system
+//see the sway_startup.scd file for an example of how to run and configure the new system
 ```
